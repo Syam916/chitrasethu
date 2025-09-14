@@ -2,45 +2,9 @@ import React from 'react';
 import { Calendar, MapPin, Users, Clock } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { ScrollArea } from '../ui/scroll-area';
+import { upcomingEvents, photographers, socialPosts, trendingEvents, collections, advertisements, suggestedConnections } from '../../data/dummyData';
 
 const HeroSection = () => {
-  const upcomingEvents = [
-    {
-      id: 1,
-      title: 'Royal Wedding Ceremony',
-      date: '2024-01-15',
-      time: '10:00 AM',
-      location: 'Grand Palace Hotel, Mumbai',
-      image: '/api/placeholder/300/200',
-      attendees: 250,
-      category: 'Wedding',
-      status: 'Booking Open'
-    },
-    {
-      id: 2,
-      title: 'Fashion Week Finale',
-      date: '2024-01-20',
-      time: '7:00 PM',
-      location: 'Fashion Arena, Delhi',
-      image: '/api/placeholder/300/200',
-      attendees: 150,
-      category: 'Fashion',
-      status: 'Limited Spots'
-    },
-    {
-      id: 3,
-      title: 'Corporate Gala Night',
-      date: '2024-01-25',
-      time: '6:30 PM',
-      location: 'Business Center, Bangalore',
-      image: '/api/placeholder/300/200',
-      attendees: 300,
-      category: 'Corporate',
-      status: 'VIP Access'
-    }
-  ];
-
   return (
     <section className="bg-gradient-to-r from-muted/30 to-muted/10 py-8">
       <div className="container mx-auto px-4">
