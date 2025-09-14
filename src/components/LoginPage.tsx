@@ -161,6 +161,15 @@ const LoginPage = () => {
                   size="lg" 
                   className="w-full transition-bounce"
                   disabled={isLoading}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setIsLoading(true);
+                    // Simulate login process
+                    setTimeout(() => {
+                      setIsLoading(false);
+                      window.location.href = '/home';
+                    }, 2000);
+                  }}
                 >
                   {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
