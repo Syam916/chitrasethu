@@ -42,10 +42,10 @@ const LoginPage = () => {
         </div>
         
         {/* Floating Content */}
-        <div className="relative z-10 flex flex-col justify-center items-start p-12 text-foreground animate-parallaxFloat">
-          <div className="animate-fadeInUp">
+        <div className="relative z-10 flex flex-col justify-center items-start p-12 text-foreground">
+          <div>
             <div className="inline-flex items-center mb-6">
-              <Camera className="w-8 h-8 text-primary mr-3 animate-float" />
+              <Camera className="w-8 h-8 text-primary mr-3" />
               <span className="text-3xl font-playfair font-bold gradient-text">PhotoStudio Pro</span>
             </div>
             
@@ -60,21 +60,21 @@ const LoginPage = () => {
             
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 mb-8">
-              <div className="text-center animate-slideInRight" style={{ animationDelay: '0.2s' }}>
+              <div className="text-center">
                 <div className="flex items-center justify-center mb-2">
                   <Users className="w-5 h-5 text-primary mr-2" />
                   <span className="text-2xl font-bold">500+</span>
                 </div>
                 <p className="text-sm text-muted-foreground">Photographers</p>
               </div>
-              <div className="text-center animate-slideInRight" style={{ animationDelay: '0.4s' }}>
+              <div className="text-center">
                 <div className="flex items-center justify-center mb-2">
                   <Star className="w-5 h-5 text-primary mr-2" />
                   <span className="text-2xl font-bold">4.9</span>
                 </div>
                 <p className="text-sm text-muted-foreground">Rating</p>
               </div>
-              <div className="text-center animate-slideInRight" style={{ animationDelay: '0.6s' }}>
+              <div className="text-center">
                 <div className="flex items-center justify-center mb-2">
                   <Heart className="w-5 h-5 text-primary mr-2" />
                   <span className="text-2xl font-bold">10K+</span>
@@ -84,7 +84,7 @@ const LoginPage = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <Award className="w-6 h-6 text-primary animate-pulse" />
+              <Award className="w-6 h-6 text-primary" />
               <span className="text-sm text-muted-foreground">Award-winning photography services</span>
             </div>
           </div>
@@ -102,7 +102,7 @@ const LoginPage = () => {
             </div>
           </div>
 
-          <Card className="glass-effect shadow-elegant animate-fadeInUp">
+          <Card className="glass-effect shadow-elegant">
             <CardHeader className="text-center space-y-2">
               <CardTitle className="text-2xl font-playfair">Welcome Back</CardTitle>
               <p className="text-muted-foreground">Sign in to your account to continue</p>

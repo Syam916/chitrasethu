@@ -46,10 +46,10 @@ const RegisterPage = () => {
         </div>
         
         {/* Floating Content */}
-        <div className="relative z-10 flex flex-col justify-center items-start p-12 text-foreground animate-parallaxFloat">
-          <div className="animate-fadeInUp">
+        <div className="relative z-10 flex flex-col justify-center items-start p-12 text-foreground">
+          <div>
             <div className="inline-flex items-center mb-6">
-              <Camera className="w-8 h-8 text-primary mr-3 animate-float" />
+              <Camera className="w-8 h-8 text-primary mr-3" />
               <span className="text-3xl font-playfair font-bold gradient-text">PhotoStudio Pro</span>
             </div>
             
@@ -64,19 +64,19 @@ const RegisterPage = () => {
             
             {/* Benefits */}
             <div className="space-y-4 mb-8">
-              <div className="flex items-center animate-slideInRight" style={{ animationDelay: '0.2s' }}>
+              <div className="flex items-center">
                 <CheckCircle2 className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
                 <span className="text-foreground">Connect with verified photographers</span>
               </div>
-              <div className="flex items-center animate-slideInRight" style={{ animationDelay: '0.4s' }}>
+              <div className="flex items-center">
                 <CheckCircle2 className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
                 <span className="text-foreground">Secure booking and payment system</span>
               </div>
-              <div className="flex items-center animate-slideInRight" style={{ animationDelay: '0.6s' }}>
+              <div className="flex items-center">
                 <CheckCircle2 className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
                 <span className="text-foreground">Portfolio showcase and reviews</span>
               </div>
-              <div className="flex items-center animate-slideInRight" style={{ animationDelay: '0.8s' }}>
+              <div className="flex items-center">
                 <CheckCircle2 className="w-5 h-5 text-primary mr-3 flex-shrink-0" />
                 <span className="text-foreground">24/7 customer support</span>
               </div>
@@ -84,21 +84,21 @@ const RegisterPage = () => {
             
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6">
-              <div className="text-center animate-slideInRight" style={{ animationDelay: '1s' }}>
+              <div className="text-center">
                 <div className="flex items-center justify-center mb-2">
                   <Users className="w-5 h-5 text-primary mr-2" />
                   <span className="text-2xl font-bold">500+</span>
                 </div>
                 <p className="text-sm text-muted-foreground">Photographers</p>
               </div>
-              <div className="text-center animate-slideInRight" style={{ animationDelay: '1.2s' }}>
+              <div className="text-center">
                 <div className="flex items-center justify-center mb-2">
                   <Star className="w-5 h-5 text-primary mr-2" />
                   <span className="text-2xl font-bold">4.9</span>
                 </div>
                 <p className="text-sm text-muted-foreground">Rating</p>
               </div>
-              <div className="text-center animate-slideInRight" style={{ animationDelay: '1.4s' }}>
+              <div className="text-center">
                 <div className="flex items-center justify-center mb-2">
                   <Award className="w-5 h-5 text-primary mr-2" />
                   <span className="text-2xl font-bold">Award</span>
@@ -121,7 +121,7 @@ const RegisterPage = () => {
             </div>
           </div>
 
-          <Card className="glass-effect shadow-elegant animate-fadeInUp">
+          <Card className="glass-effect shadow-elegant">
             <CardHeader className="text-center space-y-2">
               <CardTitle className="text-2xl font-playfair">Create Account</CardTitle>
               <p className="text-muted-foreground">Join our creative community today</p>
