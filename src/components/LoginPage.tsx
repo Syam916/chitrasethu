@@ -180,7 +180,7 @@ const LoginPage = () => {
 
                 <p className="text-center text-sm text-muted-foreground">
                   Don't have an account?{' '}
-                  <a href="#" className="text-primary hover:text-primary/80 transition-smooth font-medium">
+                  <a href="/register" className="text-primary hover:text-primary/80 transition-smooth font-medium">
                     Sign up here
                   </a>
                 </p>
