@@ -5,79 +5,13 @@ import { Button } from '../ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
+import { socialPosts } from '../../data/dummyData';
 
 const MainFeed = () => {
   const [likedPosts, setLikedPosts] = useState<number[]>([]);
   const [savedPosts, setSavedPosts] = useState<number[]>([]);
 
-  const posts = [
-    {
-      id: 1,
-      user: {
-        name: 'Rahul Photography',
-        avatar: '/api/placeholder/40/40',
-        username: '@rahulphotos',
-        verified: true
-      },
-      content: {
-        type: 'image',
-        media: ['/api/placeholder/600/400', '/api/placeholder/600/400'],
-        caption: 'Captured this beautiful moment at yesterday\'s wedding ceremony. The emotions, the colors, the pure joy - everything was perfect! 📸✨ #WeddingPhotography #LoveStory #ChitraSethu',
-        location: 'Grand Palace Hotel, Mumbai'
-      },
-      engagement: {
-        likes: 1247,
-        comments: 89,
-        shares: 23,
-        timestamp: '2 hours ago'
-      },
-      tags: ['Wedding', 'Portrait', 'Mumbai']
-    },
-    {
-      id: 2,
-      user: {
-        name: 'Priya Lens',
-        avatar: '/api/placeholder/40/40',
-        username: '@priyalens',
-        verified: false
-      },
-      content: {
-        type: 'video',
-        media: ['/api/placeholder/600/400'],
-        caption: 'Behind the scenes of today\'s fashion shoot! The magic happens when creativity meets passion. What do you think of this setup? 🎬👗',
-        location: 'Fashion Studio, Delhi'
-      },
-      engagement: {
-        likes: 892,
-        comments: 67,
-        shares: 15,
-        timestamp: '4 hours ago'
-      },
-      tags: ['Fashion', 'BTS', 'Studio']
-    },
-    {
-      id: 3,
-      user: {
-        name: 'Vikram Captures',
-        avatar: '/api/placeholder/40/40',
-        username: '@vikramcaptures',
-        verified: true
-      },
-      content: {
-        type: 'image',
-        media: ['/api/placeholder/600/400'],
-        caption: 'Corporate headshots that tell a story. Professional photography isn\'t just about the camera - it\'s about connecting with your subject. 💼📷',
-        location: 'Business District, Bangalore'
-      },
-      engagement: {
-        likes: 634,
-        comments: 42,
-        shares: 18,
-        timestamp: '6 hours ago'
-      },
-      tags: ['Corporate', 'Portrait', 'Professional']
-    }
-  ];
+  const posts = socialPosts;
 
   const toggleLike = (postId: number) => {
     setLikedPosts(prev => 

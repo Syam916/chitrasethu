@@ -32,11 +32,23 @@ const Navbar = () => {
           <div className="hidden lg:flex items-center space-x-1">
             {navItems.map((item) => {
               const IconComponent = item.icon;
+              const getRoute = (name: string) => {
+                const routes: {[key: string]: string} = {
+                  'Home': '/home',
+                  'Explore': '/explore',
+                  'Event Photos': '/event-photos',
+                  'Mood Board': '/mood-board',
+                  'Requests': '/requests',
+                  'Community Buzz': '/community-buzz',
+                };
+                return routes[name] || '/home';
+              };
               return (
                 <Button
                   key={item.name}
                   variant="ghost"
                   className="flex items-center space-x-2 text-muted-foreground hover:text-primary transition-colors"
+                  onClick={() => window.location.href = getRoute(item.name)}
                 >
                   <IconComponent className="w-4 h-4" />
                   <span className="text-sm font-medium">{item.name}</span>

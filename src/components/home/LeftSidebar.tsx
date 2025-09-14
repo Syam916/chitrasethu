@@ -5,6 +5,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
+import { photographers } from '../../data/dummyData';
 
 const LeftSidebar = () => {
   const [selectedFilter, setSelectedFilter] = useState('all');
@@ -19,41 +20,8 @@ const LeftSidebar = () => {
     { id: 'modelling', name: 'Modelling', icon: Camera, count: 15 }
   ];
 
-  const photographers = [
-    {
-      id: 1,
-      name: 'Arjun Kapoor',
-      location: 'Mumbai, Maharashtra',
-      description: 'Wedding & Portrait Specialist',
-      rating: 4.8,
-      reviews: 156,
-      image: '/api/placeholder/60/60',
-      badge: 'Pro',
-      price: '₹15,000'
-    },
-    {
-      id: 2,
-      name: 'Priya Sharma',
-      location: 'Delhi, NCR',
-      description: 'Fashion & Event Photography',
-      rating: 4.9,
-      reviews: 203,
-      image: '/api/placeholder/60/60',
-      badge: 'Premium',
-      price: '₹25,000'
-    },
-    {
-      id: 3,
-      name: 'Vikram Singh',
-      location: 'Bangalore, Karnataka',
-      description: 'Corporate & Wedding Expert',
-      rating: 4.7,
-      reviews: 98,
-      image: '/api/placeholder/60/60',
-      badge: 'Verified',
-      price: '₹18,000'
-    }
-  ];
+  // Use imported photographers data directly
+  const featuredPhotographers = photographers.slice(0, 3);
 
   return (
     <div className="space-y-6">
@@ -115,8 +83,8 @@ const LeftSidebar = () => {
           <CardTitle className="text-lg">Featured Photographers</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {photographers.map((photographer) => (
+                        <div className="space-y-4">
+            {featuredPhotographers.map((photographer) => (
               <div 
                 key={photographer.id}
                 className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer group"

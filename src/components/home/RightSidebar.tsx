@@ -4,56 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
+import { trendingEvents, collections, advertisements, suggestedConnections } from '../../data/dummyData';
 
 const RightSidebar = () => {
-  const trendingEvents = [
-    { name: 'Wedding Season', posts: 1.2, trending: '+23%' },
-    { name: 'Fashion Week', posts: 0.8, trending: '+45%' },
-    { name: 'Corporate Events', posts: 0.6, trending: '+12%' },
-    { name: 'Birthday Parties', posts: 0.9, trending: '+18%' }
-  ];
-
-  const collections = [
-    {
-      id: 1,
-      title: 'Best Wedding Shots',
-      images: 4,
-      thumbnail: '/api/placeholder/100/100',
-      curator: 'ChitraSethu Team'
-    },
-    {
-      id: 2,
-      title: 'Fashion Portfolio',
-      images: 8,
-      thumbnail: '/api/placeholder/100/100',
-      curator: 'Style Magazine'
-    },
-    {
-      id: 3,
-      title: 'Event Highlights',
-      images: 6,
-      thumbnail: '/api/placeholder/100/100',
-      curator: 'Event Masters'
-    }
-  ];
-
-  const advertisements = [
-    {
-      id: 1,
-      title: 'Premium Lens Collection',
-      subtitle: '50% off on Canon & Nikon',
-      image: '/api/placeholder/150/100',
-      cta: 'Shop Now'
-    },
-    {
-      id: 2,
-      title: 'Photography Workshop',
-      subtitle: 'Master the art of portraits',
-      image: '/api/placeholder/150/100',
-      cta: 'Register'
-    }
-  ];
-
   return (
     <div className="space-y-6">
       {/* Create Post Section */}
@@ -180,17 +133,17 @@ const RightSidebar = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {['Alex Photography', 'Sarah Studios', 'Mumbai Shots'].map((name, index) => (
-              <div key={index} className="flex items-center space-x-3">
+            {suggestedConnections.map((connection) => (
+              <div key={connection.id} className="flex items-center space-x-3">
                 <Avatar className="w-8 h-8">
-                  <AvatarImage src={`/api/placeholder/32/32?${index}`} alt={name} />
+                  <AvatarImage src={connection.avatar} alt={connection.name} />
                   <AvatarFallback className="text-xs bg-gradient-to-br from-primary to-primary-glow text-white">
-                    {name.split(' ').map(n => n[0]).join('')}
+                    {connection.name.split(' ').map(n => n[0]).join('')}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">{name}</p>
-                  <p className="text-xs text-muted-foreground">Photographer</p>
+                  <p className="font-medium text-sm truncate">{connection.name}</p>
+                  <p className="text-xs text-muted-foreground">{connection.type}</p>
                 </div>
                 <Button variant="outline" size="sm" className="text-xs px-2">
                   Follow

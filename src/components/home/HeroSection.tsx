@@ -2,6 +2,7 @@ import React from 'react';
 import { Calendar, MapPin, Users, Clock } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
+import { ScrollArea } from '../ui/scroll-area';
 import { upcomingEvents, photographers, socialPosts, trendingEvents, collections, advertisements, suggestedConnections } from '../../data/dummyData';
 
 const HeroSection = () => {
