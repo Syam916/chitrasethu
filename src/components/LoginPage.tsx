@@ -21,14 +21,28 @@ const LoginPage = () => {
     <div className="min-h-screen flex">
       {/* Hero Section */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        {/* Animated Background Image */}
         <div 
-          className="absolute inset-0 bg-cover bg-center"
+          className="absolute inset-0 bg-cover bg-center animate-kenBurns"
           style={{ backgroundImage: `url(${heroImage})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-background/90 to-background/40" />
+        {/* Animated Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-background/90 to-background/40 animate-gradientShift" style={{
+          background: 'linear-gradient(45deg, hsl(220 13% 9% / 0.9), hsl(220 13% 15% / 0.7), hsl(220 13% 9% / 0.8))',
+          backgroundSize: '400% 400%'
+        }} />
         
-        {/* Floating Elements */}
-        <div className="relative z-10 flex flex-col justify-center items-start p-12 text-foreground">
+        {/* Floating Particles */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 left-1/4 w-2 h-2 bg-primary/30 rounded-full animate-floatingParticles" style={{ animationDelay: '0s' }} />
+          <div className="absolute top-1/3 right-1/3 w-1 h-1 bg-primary/40 rounded-full animate-floatingParticles" style={{ animationDelay: '2s' }} />
+          <div className="absolute bottom-1/4 left-1/3 w-3 h-3 bg-primary/20 rounded-full animate-floatingParticles" style={{ animationDelay: '4s' }} />
+          <div className="absolute top-2/3 right-1/4 w-1.5 h-1.5 bg-primary/35 rounded-full animate-floatingParticles" style={{ animationDelay: '6s' }} />
+          <div className="absolute bottom-1/3 right-2/3 w-2.5 h-2.5 bg-primary/25 rounded-full animate-floatingParticles" style={{ animationDelay: '8s' }} />
+        </div>
+        
+        {/* Floating Content */}
+        <div className="relative z-10 flex flex-col justify-center items-start p-12 text-foreground animate-parallaxFloat">
           <div className="animate-fadeInUp">
             <div className="inline-flex items-center mb-6">
               <Camera className="w-8 h-8 text-primary mr-3 animate-float" />

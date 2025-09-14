@@ -24,14 +24,29 @@ const RegisterPage = () => {
     <div className="min-h-screen flex">
       {/* Hero Section */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+        {/* Animated Background Image */}
         <div 
-          className="absolute inset-0 bg-cover bg-center"
+          className="absolute inset-0 bg-cover bg-center animate-subtleZoom"
           style={{ backgroundImage: `url(${registerImage})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-background/90 to-background/40" />
+        {/* Animated Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-background/90 to-background/40 animate-gradientShift" style={{
+          background: 'linear-gradient(-45deg, hsl(220 13% 9% / 0.9), hsl(220 13% 15% / 0.6), hsl(220 13% 11% / 0.8))',
+          backgroundSize: '400% 400%'
+        }} />
         
-        {/* Floating Elements */}
-        <div className="relative z-10 flex flex-col justify-center items-start p-12 text-foreground">
+        {/* Floating Camera Icons */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <Camera className="absolute top-1/4 left-1/6 w-4 h-4 text-primary/20 animate-floatingParticles" style={{ animationDelay: '0s' }} />
+          <Camera className="absolute top-1/2 right-1/4 w-3 h-3 text-primary/30 animate-floatingParticles" style={{ animationDelay: '3s' }} />
+          <Camera className="absolute bottom-1/3 left-1/3 w-5 h-5 text-primary/15 animate-floatingParticles" style={{ animationDelay: '6s' }} />
+          <Star className="absolute top-1/3 right-1/3 w-2 h-2 text-primary/25 animate-floatingParticles" style={{ animationDelay: '2s' }} />
+          <Star className="absolute bottom-1/4 right-1/6 w-3 h-3 text-primary/20 animate-floatingParticles" style={{ animationDelay: '8s' }} />
+          <Award className="absolute top-2/3 left-1/4 w-4 h-4 text-primary/25 animate-floatingParticles" style={{ animationDelay: '5s' }} />
+        </div>
+        
+        {/* Floating Content */}
+        <div className="relative z-10 flex flex-col justify-center items-start p-12 text-foreground animate-parallaxFloat">
           <div className="animate-fadeInUp">
             <div className="inline-flex items-center mb-6">
               <Camera className="w-8 h-8 text-primary mr-3 animate-float" />
