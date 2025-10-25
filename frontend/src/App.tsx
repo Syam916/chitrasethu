@@ -12,6 +12,10 @@ import Requests from "./pages/Requests";
 import CommunityBuzz from "./pages/CommunityBuzz";
 import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
+import LoginPageIntegrated from "./components/LoginPageIntegrated";
+import RegisterPageIntegrated from "./components/RegisterPageIntegrated";
+import TestConnection from "./pages/TestConnection";
+import ProfileSettings from "./pages/ProfileSettings";
 
 const queryClient = new QueryClient();
 
@@ -22,15 +26,17 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Index />} />
+          <Route path="/" element={<LoginPageIntegrated />} />
+          <Route path="/login" element={<LoginPageIntegrated />} />
+          <Route path="/register" element={<RegisterPageIntegrated />} />
+          <Route path="/test" element={<TestConnection />} />
+          <Route path="/profile" element={<ProfileSettings />} />
           <Route path="/home" element={<Home />} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/event-photos" element={<EventPhotos />} />
           <Route path="/mood-board" element={<MoodBoard />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/community-buzz" element={<CommunityBuzz />} />
-          <Route path="/register" element={<Register />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

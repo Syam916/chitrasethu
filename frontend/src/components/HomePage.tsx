@@ -1,15 +1,25 @@
-import React from 'react';
-import Navbar from './home/Navbar';
+import React, { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import NavbarIntegrated from './home/NavbarIntegrated';
 import HeroSection from './home/HeroSection';
 import LeftSidebar from './home/LeftSidebar';
 import MainFeed from './home/MainFeed';
 import RightSidebar from './home/RightSidebar';
+import authService from '@/services/auth.service';
 
 const HomePage = () => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is authenticated
+    if (!authService.isAuthenticated()) {
+      navigate('/login');
+    }
+  }, [navigate]);
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       {/* Navbar */}
-      <Navbar />
+      <NavbarIntegrated />
       
       {/* Hero Section */}
       <HeroSection />
