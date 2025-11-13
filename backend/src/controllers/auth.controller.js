@@ -26,7 +26,7 @@ export const register = async (req, res) => {
 
     // Check if user already exists
     const existingUser = await query(
-      'SELECT user_id FROM users WHERE email = ?',
+      'SELECT user_id FROM users WHERE email = $1',
       [email]
     );
 
@@ -40,19 +40,19 @@ export const register = async (req, res) => {
     // Hash password
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Insert user
+    // Insert user (PostgreSQL returns the inserted row with RETURNING)
     const userResult = await query(
       `INSERT INTO users (email, password_hash, user_type, is_verified, is_active) 
-       VALUES (?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5) RETURNING user_id`,
       [email, passwordHash, userType || 'customer', false, true]
     );
 
-    const userId = userResult.insertId;
+    const userId = userResult[0].user_id;
 
     // Create user profile
     await query(
       `INSERT INTO user_profiles (user_id, full_name, phone) 
-       VALUES (?, ?, ?)`,
+       VALUES ($1, $2, $3)`,
       [userId, fullName, phone || null]
     );
 
@@ -60,14 +60,16 @@ export const register = async (req, res) => {
     const token = generateToken(userId, email, userType || 'customer');
 
     // Get complete user data
-    const [user] = await query(
+    const userDataResult = await query(
       `SELECT u.user_id, u.email, u.user_type, u.is_verified, 
               up.full_name, up.avatar_url, up.phone, up.location
        FROM users u
        LEFT JOIN user_profiles up ON u.user_id = up.user_id
-       WHERE u.user_id = ?`,
+       WHERE u.user_id = $1`,
       [userId]
     );
+    
+    const user = userDataResult[0];
 
     res.status(201).json({
       status: 'success',
@@ -115,7 +117,7 @@ export const login = async (req, res) => {
               up.full_name, up.avatar_url, up.phone, up.location
        FROM users u
        LEFT JOIN user_profiles up ON u.user_id = up.user_id
-       WHERE u.email = ?`,
+       WHERE u.email = $1`,
       [email]
     );
 
@@ -151,7 +153,7 @@ export const login = async (req, res) => {
 
     // Update last login
     await query(
-      'UPDATE users SET last_login = NOW() WHERE user_id = ?',
+      'UPDATE users SET last_login = NOW() WHERE user_id = $1',
       [user.user_id]
     );
 
@@ -187,14 +189,16 @@ export const getCurrentUser = async (req, res) => {
   try {
     const userId = req.user.userId;
 
-    const [user] = await query(
+    const userResult = await query(
       `SELECT u.user_id, u.email, u.user_type, u.is_verified,
               up.full_name, up.avatar_url, up.bio, up.phone, up.location, up.city, up.state
        FROM users u
        LEFT JOIN user_profiles up ON u.user_id = up.user_id
-       WHERE u.user_id = ?`,
+       WHERE u.user_id = $1`,
       [userId]
     );
+    
+    const user = userResult[0];
 
     if (!user) {
       return res.status(404).json({
@@ -240,20 +244,22 @@ export const updateProfile = async (req, res) => {
     // Update user profile
     await query(
       `UPDATE user_profiles 
-       SET full_name = ?, phone = ?, location = ?, city = ?, state = ?, bio = ?, updated_at = NOW()
-       WHERE user_id = ?`,
+       SET full_name = $1, phone = $2, location = $3, city = $4, state = $5, bio = $6, updated_at = NOW()
+       WHERE user_id = $7`,
       [fullName, phone, location, city, state, bio, userId]
     );
 
     // Get updated user data
-    const [user] = await query(
+    const userResult = await query(
       `SELECT u.user_id, u.email, u.user_type, u.is_verified,
               up.full_name, up.avatar_url, up.bio, up.phone, up.location, up.city, up.state
        FROM users u
        LEFT JOIN user_profiles up ON u.user_id = up.user_id
-       WHERE u.user_id = ?`,
+       WHERE u.user_id = $1`,
       [userId]
     );
+    
+    const user = userResult[0];
 
     res.status(200).json({
       status: 'success',

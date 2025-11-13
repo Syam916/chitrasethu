@@ -10,35 +10,41 @@ export const getAllPhotographers = async (req, res) => {
       FROM photographers p
       JOIN users u ON p.user_id = u.user_id
       JOIN user_profiles up ON u.user_id = up.user_id
-      WHERE p.is_active = 1 AND u.is_active = 1
+      WHERE p.is_active = true AND u.is_active = true
     `;
     
     const params = [];
+    let paramIndex = 1;
     
-    // Add filters
+    // Add filters (PostgreSQL uses $1, $2, etc.)
     if (category) {
-      sql += ` AND JSON_CONTAINS(p.specialties, ?)`;
-      params.push(JSON.stringify(category));
+      sql += ` AND p.specialties @> $${paramIndex}::jsonb`;
+      params.push(JSON.stringify([category]));
+      paramIndex++;
     }
     
     if (city) {
-      sql += ` AND up.city LIKE ?`;
+      sql += ` AND up.city ILIKE $${paramIndex}`;
       params.push(`%${city}%`);
+      paramIndex++;
     }
     
     if (minRating) {
-      sql += ` AND p.rating >= ?`;
+      sql += ` AND p.rating >= $${paramIndex}`;
       params.push(parseFloat(minRating));
+      paramIndex++;
     }
     
     if (maxPrice) {
-      sql += ` AND p.base_price <= ?`;
+      sql += ` AND p.base_price <= $${paramIndex}`;
       params.push(parseFloat(maxPrice));
+      paramIndex++;
     }
     
     if (search) {
-      sql += ` AND (up.full_name LIKE ? OR p.business_name LIKE ?)`;
+      sql += ` AND (up.full_name ILIKE $${paramIndex} OR p.business_name ILIKE $${paramIndex + 1})`;
       params.push(`%${search}%`, `%${search}%`);
+      paramIndex += 2;
     }
     
     sql += ` ORDER BY p.rating DESC, p.total_reviews DESC LIMIT 50`;
@@ -57,7 +63,7 @@ export const getAllPhotographers = async (req, res) => {
           location: p.location,
           city: p.city,
           state: p.state,
-          specialties: JSON.parse(p.specialties || '[]'),
+          specialties: p.specialties,
           experienceYears: p.experience_years,
           basePrice: parseFloat(p.base_price),
           rating: parseFloat(p.rating),
@@ -82,14 +88,16 @@ export const getPhotographerById = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const [photographer] = await query(
+    const photographerResult = await query(
       `SELECT p.*, up.full_name, up.avatar_url, up.bio, up.phone, up.location, up.city, up.state
        FROM photographers p
        JOIN users u ON p.user_id = u.user_id
        JOIN user_profiles up ON u.user_id = up.user_id
-       WHERE p.photographer_id = ? AND p.is_active = 1`,
+       WHERE p.photographer_id = $1 AND p.is_active = true`,
       [id]
     );
+    
+    const photographer = photographerResult[0];
     
     if (!photographer) {
       return res.status(404).json({
@@ -101,7 +109,7 @@ export const getPhotographerById = async (req, res) => {
     // Get portfolio
     const portfolio = await query(
       `SELECT * FROM photographer_portfolios 
-       WHERE photographer_id = ? AND is_active = 1 
+       WHERE photographer_id = $1 AND is_active = true 
        ORDER BY display_order, created_at DESC`,
       [id]
     );
@@ -120,14 +128,14 @@ export const getPhotographerById = async (req, res) => {
           location: photographer.location,
           city: photographer.city,
           state: photographer.state,
-          specialties: JSON.parse(photographer.specialties || '[]'),
+          specialties: photographer.specialties,
           experienceYears: photographer.experience_years,
           basePrice: parseFloat(photographer.base_price),
           rating: parseFloat(photographer.rating),
           totalReviews: photographer.total_reviews,
           totalBookings: photographer.total_bookings,
-          equipment: JSON.parse(photographer.equipment || '[]'),
-          languages: JSON.parse(photographer.languages || '[]'),
+          equipment: photographer.equipment,
+          languages: photographer.languages,
           isVerified: photographer.is_verified,
           isPremium: photographer.is_premium,
           portfolio: portfolio.map(p => ({

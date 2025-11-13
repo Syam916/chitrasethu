@@ -8,6 +8,10 @@ import { Textarea } from '../components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
 import Navbar from '../components/home/Navbar';
 import { eventCategories } from '../data/dummyData';
+import avatarOne from '@/assets/photographer-1.jpg';
+import avatarTwo from '@/assets/photographer-2.jpg';
+import avatarThree from '@/assets/wedding-1.jpg';
+import avatarFour from '@/assets/prewedding-1.jpg';
 
 const Requests = () => {
   const [activeTab, setActiveTab] = useState<'browse' | 'create' | 'my-requests'>('browse');
@@ -19,7 +23,7 @@ const Requests = () => {
       id: 1,
       title: 'Wedding Photography - Traditional Ceremony',
       client: 'Priya & Rahul',
-      avatar: '/api/placeholder/40/40',
+      avatar: avatarOne,
       budget: '₹45,000 - ₹60,000',
       date: '2024-02-15',
       location: 'Mumbai, Maharashtra',
@@ -35,7 +39,7 @@ const Requests = () => {
       id: 2,
       title: 'Corporate Event Photography',
       client: 'Tech Solutions Inc.',
-      avatar: '/api/placeholder/40/40',
+      avatar: avatarTwo,
       budget: '₹25,000 - ₹35,000',
       date: '2024-01-28',
       location: 'Bangalore, Karnataka',
@@ -51,7 +55,7 @@ const Requests = () => {
       id: 3,
       title: 'Fashion Portfolio Shoot',
       client: 'Ananya Model',
-      avatar: '/api/placeholder/40/40',
+      avatar: avatarThree,
       budget: '₹15,000 - ₹25,000',
       date: '2024-02-05',
       location: 'Delhi, NCR',
@@ -67,7 +71,7 @@ const Requests = () => {
       id: 4,
       title: 'Pre-Wedding Shoot at Beach',
       client: 'Rohit & Kavya',
-      avatar: '/api/placeholder/40/40',
+      avatar: avatarFour,
       budget: '₹20,000 - ₹30,000',
       date: '2024-02-10',
       location: 'Goa',

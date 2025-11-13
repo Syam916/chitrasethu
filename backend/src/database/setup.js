@@ -1,4 +1,4 @@
-import mysql from 'mysql2/promise';
+import pg from 'pg';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
@@ -6,47 +6,53 @@ import { fileURLToPath } from 'url';
 
 dotenv.config();
 
+const { Client } = pg;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Database setup script
 const setupDatabase = async () => {
-  let connection;
+  let client;
   
   try {
     console.log('🔧 Starting database setup...\n');
     
-    // Connect to MySQL without database selection
-    connection = await mysql.createConnection({
+    // Connect to PostgreSQL (connect to specific database)
+    client = new Client({
       host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
+      user: process.env.DB_USER || 'postgres',
       password: process.env.DB_PASSWORD || '',
-      port: process.env.DB_PORT || 3306,
-      multipleStatements: true
+      database: process.env.DB_NAME || 'chitrasethu',
+      port: process.env.DB_PORT || 5432,
     });
     
-    console.log('✅ Connected to MySQL server');
+    await client.connect();
+    console.log('✅ Connected to PostgreSQL server');
     
     // Read schema file
-    const schemaPath = path.join(__dirname, '../../database/schema.sql');
+    const schemaPath = path.join(__dirname, '../../database/schema_postgres.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
     
-    console.log('📄 Reading schema file...');
+    console.log('📄 Reading PostgreSQL schema file...');
     
     // Execute schema
-    console.log('⚙️  Creating database and tables...');
-    await connection.query(schema);
+    console.log('⚙️  Creating tables, enums, triggers, and views...');
+    await client.query(schema);
     
     console.log('✅ Database schema created successfully\n');
     
     // Verify tables
-    await connection.query(`USE ${process.env.DB_NAME || 'chitrasethu'}`);
-    const [tables] = await connection.query('SHOW TABLES');
+    const result = await client.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_type = 'BASE TABLE'
+      ORDER BY table_name
+    `);
     
     console.log('📊 Created tables:');
-    tables.forEach((table, index) => {
-      const tableName = Object.values(table)[0];
-      console.log(`   ${index + 1}. ${tableName}`);
+    result.rows.forEach((row, index) => {
+      console.log(`   ${index + 1}. ${row.table_name}`);
     });
     
     console.log('\n✅ Database setup completed successfully!');
@@ -54,10 +60,11 @@ const setupDatabase = async () => {
     
   } catch (error) {
     console.error('❌ Database setup failed:', error.message);
+    console.error('Stack:', error.stack);
     process.exit(1);
   } finally {
-    if (connection) {
-      await connection.end();
+    if (client) {
+      await client.end();
     }
   }
 };

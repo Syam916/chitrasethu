@@ -1,9 +1,10 @@
-import mysql from 'mysql2/promise';
+import pg from 'pg';
 import dotenv from 'dotenv';
 import readline from 'readline';
 
 dotenv.config();
 
+const { Client } = pg;
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
@@ -11,10 +12,10 @@ const rl = readline.createInterface({
 
 // Database reset script
 const resetDatabase = async () => {
-  let connection;
+  let client;
   
   try {
-    console.log('⚠️  WARNING: This will delete all data in the database!\n');
+    console.log('⚠️  WARNING: This will delete all data and drop all tables in the database!\n');
     
     rl.question('Are you sure you want to reset the database? (yes/no): ', async (answer) => {
       if (answer.toLowerCase() !== 'yes') {
@@ -26,32 +27,38 @@ const resetDatabase = async () => {
       try {
         console.log('\n🔄 Resetting database...\n');
         
-        // Connect to MySQL
-        connection = await mysql.createConnection({
+        // Connect to PostgreSQL
+        client = new Client({
           host: process.env.DB_HOST || 'localhost',
-          user: process.env.DB_USER || 'root',
+          user: process.env.DB_USER || 'postgres',
           password: process.env.DB_PASSWORD || '',
-          port: process.env.DB_PORT || 3306,
-          multipleStatements: true
+          database: process.env.DB_NAME || 'chitrasethu',
+          port: process.env.DB_PORT || 5432,
         });
         
-        console.log('✅ Connected to MySQL server');
+        await client.connect();
+        console.log('✅ Connected to PostgreSQL server');
         
-        // Drop database
         const dbName = process.env.DB_NAME || 'chitrasethu';
-        console.log(`🗑️  Dropping database: ${dbName}`);
-        await connection.query(`DROP DATABASE IF EXISTS ${dbName}`);
+        console.log(`🗑️  Dropping all objects in database: ${dbName}`);
         
-        console.log('✅ Database dropped successfully\n');
-        console.log('💡 Run "npm run db:setup" to recreate the database');
+        // Drop all tables (CASCADE will drop dependent objects)
+        await client.query('DROP SCHEMA public CASCADE');
+        await client.query('CREATE SCHEMA public');
+        await client.query('GRANT ALL ON SCHEMA public TO postgres');
+        await client.query('GRANT ALL ON SCHEMA public TO public');
+        
+        console.log('✅ Database reset successfully\n');
+        console.log('💡 Run "npm run db:setup" to recreate the database schema');
         console.log('💡 Then run "npm run db:seed" to populate with sample data\n');
         
       } catch (error) {
         console.error('❌ Database reset failed:', error.message);
+        console.error('Stack:', error.stack);
         process.exit(1);
       } finally {
-        if (connection) {
-          await connection.end();
+        if (client) {
+          await client.end();
         }
         rl.close();
         process.exit(0);

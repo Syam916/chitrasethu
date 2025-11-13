@@ -17,6 +17,24 @@ import RegisterPageIntegrated from "./components/RegisterPageIntegrated";
 import TestConnection from "./pages/TestConnection";
 import ProfileSettings from "./pages/ProfileSettings";
 
+// Photographer Routes
+import PhotographerHome from "./pages/photographer/Home";
+import PhotographerRequests from "./pages/photographer/Requests";
+import PhotographerJobs from "./pages/photographer/Jobs";
+import PhotographerBookings from "./pages/photographer/Bookings";
+import PhotographerPhotoBooth from "./pages/photographer/PhotoBooth";
+import PhotographerMaps from "./pages/photographer/Maps";
+import PhotographerMessages from "./pages/photographer/Messages";
+import PhotographerProfileEdit from "./pages/photographer/ProfileEdit";
+import PhotographerCommunityBuzz from "./pages/photographer/CommunityBuzz";
+import PhotographerProfilePublic from "./pages/photographer/ProfilePublic";
+import PhotographerEventPhotos from "./pages/photographer/EventPhotos";
+import PhotographerEventSessionCreate from "./pages/photographer/EventSessionCreate";
+import PhotographerMoodBoards from "./pages/photographer/MoodBoards";
+import PhotographerMoodBoardCreate from "./pages/photographer/MoodBoardCreate";
+import PhotographerCommunity from "./pages/photographer/Community";
+import PhotographerCommunityCollaborations from "./pages/photographer/CommunityCollaborations";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -37,6 +55,25 @@ const App = () => (
           <Route path="/mood-board" element={<MoodBoard />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/community-buzz" element={<CommunityBuzz />} />
+          
+          {/* Photographer Routes */}
+        <Route path="/photographer/home" element={<PhotographerHome />} />
+        <Route path="/photographer/requests" element={<PhotographerRequests />} />
+        <Route path="/photographer/community-buzz" element={<PhotographerCommunityBuzz />} />
+        <Route path="/photographer/jobs" element={<PhotographerJobs />} />
+        <Route path="/photographer/bookings" element={<PhotographerBookings />} />
+        <Route path="/photographer/photo-booth" element={<PhotographerPhotoBooth />} />
+        <Route path="/photographer/maps" element={<PhotographerMaps />} />
+        <Route path="/photographer/messages" element={<PhotographerMessages />} />
+        <Route path="/photographer/profile/edit" element={<PhotographerProfileEdit />} />
+        <Route path="/photographer/profile/public" element={<PhotographerProfilePublic />} />
+        <Route path="/photographer/event-photos" element={<PhotographerEventPhotos />} />
+        <Route path="/photographer/event-photos/create" element={<PhotographerEventSessionCreate />} />
+        <Route path="/photographer/mood-boards" element={<PhotographerMoodBoards />} />
+        <Route path="/photographer/mood-boards/create" element={<PhotographerMoodBoardCreate />} />
+        <Route path="/photographer/community" element={<PhotographerCommunity />} />
+        <Route path="/photographer/community/collaborations" element={<PhotographerCommunityCollaborations />} />
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -1,6 +1,6 @@
 # Chitrasethu Backend API
 
-Complete backend API for the Chitrasethu Photography Platform built with Node.js, Express, and MySQL.
+Complete backend API for the Chitrasethu Photography Platform built with Node.js, Express, and PostgreSQL.
 
 ## 📋 Table of Contents
 
@@ -37,7 +37,7 @@ Complete backend API for the Chitrasethu Photography Platform built with Node.js
 
 - **Runtime**: Node.js 18+
 - **Framework**: Express.js
-- **Database**: MySQL 8.0+
+- **Database**: PostgreSQL 15+
 - **Authentication**: JWT (JSON Web Tokens)
 - **Password Hashing**: bcryptjs
 - **File Upload**: Multer + Cloudinary
@@ -53,7 +53,7 @@ Complete backend API for the Chitrasethu Photography Platform built with Node.js
 Before you begin, ensure you have the following installed:
 
 - Node.js (v18 or higher)
-- MySQL (v8.0 or higher)
+- PostgreSQL (v15 or higher)
 - npm or yarn
 - Git
 
@@ -87,12 +87,12 @@ Edit `.env` with your configuration:
 PORT=5000
 NODE_ENV=development
 
-# Database Configuration
+# Database Configuration (PostgreSQL)
 DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=your_mysql_password
+DB_USER=postgres
+DB_PASSWORD=your_postgres_password
 DB_NAME=chitrasethu
-DB_PORT=3306
+DB_PORT=5432
 
 # JWT Secret
 JWT_SECRET=your_super_secret_jwt_key_change_this_in_production

@@ -10,9 +10,9 @@ export const getAllPosts = async (req, res) => {
        FROM posts p
        JOIN users u ON p.user_id = u.user_id
        JOIN user_profiles up ON u.user_id = up.user_id
-       WHERE p.is_active = 1
+       WHERE p.is_active = true
        ORDER BY p.created_at DESC
-       LIMIT ? OFFSET ?`,
+       LIMIT $1 OFFSET $2`,
       [parseInt(limit), parseInt(offset)]
     );
     
@@ -27,10 +27,10 @@ export const getAllPosts = async (req, res) => {
           userType: p.user_type,
           contentType: p.content_type,
           caption: p.caption,
-          mediaUrls: JSON.parse(p.media_urls || '[]'),
+          mediaUrls: p.media_urls,
           thumbnailUrl: p.thumbnail_url,
           location: p.location,
-          tags: JSON.parse(p.tags || '[]'),
+          tags: p.tags,
           likesCount: p.likes_count,
           commentsCount: p.comments_count,
           sharesCount: p.shares_count,

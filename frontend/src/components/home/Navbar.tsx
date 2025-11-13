@@ -3,6 +3,7 @@ import { Search, Home, Compass, Calendar, Image, Users, MessageSquare, Bell } fr
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import defaultAvatar from '@/assets/photographer-1.jpg';
 
 const Navbar = () => {
   const navItems = [
@@ -77,7 +78,7 @@ const Navbar = () => {
             
             <div className="flex items-center space-x-3">
               <Avatar className="w-8 h-8 ring-2 ring-primary/20">
-                <AvatarImage src="/api/placeholder/32/32" alt="Profile" />
+                <AvatarImage src={defaultAvatar} alt="Profile" />
                 <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs">
                   JD
                 </AvatarFallback>

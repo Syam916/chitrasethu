@@ -150,6 +150,7 @@ backend/
 - Provides query helper functions
 - Handles database transactions
 - Tests database connectivity
+
 ```
 
 #### 3. **controllers/auth.controller.js** - Authentication Logic

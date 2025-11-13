@@ -6,6 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { socialPosts } from '../../data/dummyData';
+import defaultAvatar from '@/assets/photographer-1.jpg';
 
 const MainFeed = () => {
   const [likedPosts, setLikedPosts] = useState<number[]>([]);
@@ -151,7 +152,7 @@ const MainFeed = () => {
               {/* Add Comment */}
               <div className="flex items-center space-x-3 mt-3">
                 <Avatar className="w-8 h-8">
-                  <AvatarImage src="/api/placeholder/32/32" alt="Your avatar" />
+                  <AvatarImage src={defaultAvatar} alt="Your avatar" />
                   <AvatarFallback className="text-xs bg-muted">You</AvatarFallback>
                 </Avatar>
                 <Input 

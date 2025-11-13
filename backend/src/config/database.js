@@ -1,32 +1,34 @@
-import mysql from 'mysql2/promise';
+import pg from 'pg';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+const { Pool } = pg;
+
 // Database configuration
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || 'root',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD ?? 'root',
   database: process.env.DB_NAME || 'chitrasethu',
-  port: process.env.DB_PORT || 3306,
-  waitForConnections: true,
-  connectionLimit: 10,
-  queueLimit: 0,
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0
+  port: process.env.DB_PORT || 5432,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 };
 
 // Create connection pool
-const pool = mysql.createPool(dbConfig);
+const pool = new Pool(dbConfig);
 
 // Test database connection
 const testConnection = async () => {
   try {
-    const connection = await pool.getConnection();
+    const client = await pool.connect();
+    const result = await client.query('SELECT NOW()');
     console.log('✅ Database connected successfully');
-    console.log(`📊 Connected to: ${process.env.DB_NAME}`);
-    connection.release();
+    console.log(`📊 Connected to: ${process.env.DB_NAME || 'chitrasethu'}`);
+    console.log(`⏰ Server time: ${result.rows[0].now}`);
+    client.release();
     return true;
   } catch (error) {
     console.error('❌ Database connection failed:', error.message);
@@ -34,33 +36,41 @@ const testConnection = async () => {
   }
 };
 
-// Execute query helper
-const query = async (sql, params) => {
+// Execute query helper (PostgreSQL uses $1, $2 instead of ?)
+const query = async (sql, params = []) => {
   try {
-    const [results] = await pool.execute(sql, params);
-    return results;
+    const result = await pool.query(sql, params);
+    return result.rows;
   } catch (error) {
     console.error('Query error:', error.message);
+    console.error('SQL:', sql);
+    console.error('Params:', params);
     throw error;
   }
 };
 
 // Transaction helper
 const transaction = async (callback) => {
-  const connection = await pool.getConnection();
+  const client = await pool.connect();
   try {
-    await connection.beginTransaction();
-    const result = await callback(connection);
-    await connection.commit();
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
     return result;
   } catch (error) {
-    await connection.rollback();
+    await client.query('ROLLBACK');
     throw error;
   } finally {
-    connection.release();
+    client.release();
   }
 };
 
-export { pool, testConnection, query, transaction };
+// Helper to convert MySQL ? placeholders to PostgreSQL $1, $2, etc.
+const convertPlaceholders = (sql) => {
+  let index = 1;
+  return sql.replace(/\?/g, () => `$${index++}`);
+};
+
+export { pool, testConnection, query, transaction, convertPlaceholders };
 export default pool;
 

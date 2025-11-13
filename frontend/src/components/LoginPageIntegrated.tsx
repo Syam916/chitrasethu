@@ -36,8 +36,14 @@ const LoginPageIntegrated = () => {
       const response = await authService.login(formData);
       console.log('Login successful:', response);
       
-      // Redirect to home page
-      navigate('/home');
+      const userType = response?.data?.user?.userType || authService.getStoredUser()?.userType;
+      const normalizedType = typeof userType === 'string' ? userType.toLowerCase() : '';
+
+      if (normalizedType === 'photographer') {
+        navigate('/photographer/home');
+      } else {
+        navigate('/home');
+      }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
       console.error('Login error:', err);
@@ -232,4 +238,5 @@ const LoginPageIntegrated = () => {
 };
 
 export default LoginPageIntegrated;
+
 
