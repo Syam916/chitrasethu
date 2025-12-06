@@ -35,6 +35,9 @@ import PhotographerMoodBoardCreate from "./pages/photographer/MoodBoardCreate";
 import PhotographerCommunity from "./pages/photographer/Community";
 import PhotographerCommunityCollaborations from "./pages/photographer/CommunityCollaborations";
 
+// Customer Routes
+import CustomerMessages from "./pages/customer/Messages";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -55,6 +58,9 @@ const App = () => (
           <Route path="/mood-board" element={<MoodBoard />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/community-buzz" element={<CommunityBuzz />} />
+          
+          {/* Customer Routes */}
+          <Route path="/customer/messages" element={<CustomerMessages />} />
           
           {/* Photographer Routes */}
         <Route path="/photographer/home" element={<PhotographerHome />} />

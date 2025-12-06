@@ -11,7 +11,7 @@ const dbConfig = {
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD ?? 'root',
   database: process.env.DB_NAME || 'chitrasethu',
-  port: process.env.DB_PORT || 5432,
+  port: process.env.DB_PORT || 5433,
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,

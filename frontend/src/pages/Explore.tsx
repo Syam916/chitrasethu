@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
-import Navbar from '../components/home/Navbar';
+import NavbarIntegrated from '../components/home/NavbarIntegrated';
 import { photographers, eventCategories } from '../data/dummyData';
 
 const Explore = () => {
@@ -27,7 +27,7 @@ const Explore = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
-      <Navbar />
+      <NavbarIntegrated />
       
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary/10 to-primary-glow/10 py-16">

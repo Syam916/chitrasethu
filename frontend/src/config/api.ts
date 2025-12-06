@@ -30,6 +30,13 @@ export const API_ENDPOINTS = {
     LIST: `${API_BASE_URL}/bookings`,
     DETAIL: (id: number) => `${API_BASE_URL}/bookings/${id}`,
   },
+  // Messages
+  MESSAGES: {
+    CONVERSATIONS: `${API_BASE_URL}/messages/conversations`,
+    CONVERSATION: (id: string) => `${API_BASE_URL}/messages/conversations/${id}`,
+    SEND: `${API_BASE_URL}/messages/send`,
+    MARK_READ: (id: string) => `${API_BASE_URL}/messages/conversations/${id}/read`,
+  },
 };
 
 // Helper function to get auth header

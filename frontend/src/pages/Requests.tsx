@@ -6,7 +6,7 @@ import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Textarea } from '../components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
-import Navbar from '../components/home/Navbar';
+import NavbarIntegrated from '../components/home/NavbarIntegrated';
 import { eventCategories } from '../data/dummyData';
 import avatarOne from '@/assets/photographer-1.jpg';
 import avatarTwo from '@/assets/photographer-2.jpg';
@@ -100,7 +100,7 @@ const Requests = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
-      <Navbar />
+      <NavbarIntegrated />
       
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary/10 to-primary-glow/10 py-16">

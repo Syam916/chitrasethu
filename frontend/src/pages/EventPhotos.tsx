@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { ScrollArea } from '../components/ui/scroll-area';
-import Navbar from '../components/home/Navbar';
+import NavbarIntegrated from '../components/home/NavbarIntegrated';
 import { upcomingEvents, eventCategories } from '../data/dummyData';
 
 const EventPhotos = () => {
@@ -36,7 +36,7 @@ const EventPhotos = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
-      <Navbar />
+      <NavbarIntegrated />
       
       {/* Hero Section */}
       <div className="bg-gradient-to-r from-primary/10 to-primary-glow/10 py-16">

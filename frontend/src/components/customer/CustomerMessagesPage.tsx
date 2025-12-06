@@ -7,12 +7,13 @@ import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { ScrollArea } from '../ui/scroll-area';
-import PhotographerNavbar from './PhotographerNavbar';
+import NavbarIntegrated from '../home/NavbarIntegrated';
 import authService, { User } from '@/services/auth.service';
 import messageService, { Conversation, Message } from '@/services/message.service';
+import { customerMessages } from '@/data/customerDummyData';
 import useSocket from '@/hooks/useSocket';
 
-const PhotographerMessagesPage = () => {
+const CustomerMessagesPage = () => {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -311,7 +312,7 @@ const PhotographerMessagesPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
-      <PhotographerNavbar />
+      <NavbarIntegrated />
       
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-12rem)]">
@@ -355,7 +356,7 @@ const PhotographerMessagesPage = () => {
                         <div className="flex items-start space-x-3">
                           <div className="relative">
                             <Avatar className="w-12 h-12">
-                              <AvatarImage src={conversation.participantAvatar || undefined} alt={conversation.participantName} />
+                              <AvatarImage src={conversation.participantAvatar} alt={conversation.participantName} />
                               <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs">
                                 {conversation.participantName.split(' ').map(n => n[0]).join('')}
                               </AvatarFallback>
@@ -393,42 +394,42 @@ const PhotographerMessagesPage = () => {
 
           {/* Chat Window - Center Panel */}
           <div className="lg:col-span-8 xl:col-span-6">
-            <Card className="glass-effect h-full flex flex-col">
-              {selectedConversation ? (
-                <>
-                  {/* Chat Header */}
-                  <div className="p-4 border-b border-border/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage src={selectedConversation.participantAvatar || undefined} alt={selectedConversation.participantName} />
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs">
-                            {selectedConversation.participantName.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <h3 className="font-semibold">{selectedConversation.participantName}</h3>
-                          <p className="text-xs text-muted-foreground">
-                            {selectedConversation.online ? 'Online' : `Last seen ${formatTimestamp(selectedConversation.timestamp)}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Button variant="ghost" size="icon">
-                          <Phone className="w-5 h-5" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <VideoIcon className="w-5 h-5" />
-                        </Button>
-                        <Button variant="ghost" size="icon">
-                          <MoreVertical className="w-5 h-5" />
-                        </Button>
+            {selectedConversation ? (
+              <Card className="glass-effect h-full flex flex-col">
+                {/* Chat Header */}
+                <div className="p-4 border-b border-border/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarImage src={selectedConversation.participantAvatar} alt={selectedConversation.participantName} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs">
+                          {selectedConversation.participantName.split(' ').map(n => n[0]).join('')}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <h3 className="font-semibold">{selectedConversation.participantName}</h3>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedConversation.online ? 'Online' : `Last seen ${formatTimestamp(selectedConversation.timestamp)}`}
+                        </p>
                       </div>
                     </div>
+                    <div className="flex items-center space-x-2">
+                      <Button variant="ghost" size="icon">
+                        <Phone className="w-5 h-5" />
+                      </Button>
+                      <Button variant="ghost" size="icon">
+                        <VideoIcon className="w-5 h-5" />
+                      </Button>
+                      <Button variant="ghost" size="icon">
+                        <MoreVertical className="w-5 h-5" />
+                      </Button>
+                    </div>
                   </div>
+                </div>
 
-                  {/* Messages Area */}
-                  <ScrollArea className="flex-1 p-4">
+                {/* Messages Area */}
+                <ScrollArea className="flex-1 p-4">
+                  <div className="space-y-4">
                     {loadingMessages ? (
                       <div className="flex items-center justify-center py-8">
                         <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
@@ -438,7 +439,7 @@ const PhotographerMessagesPage = () => {
                         No messages yet. Start the conversation!
                       </div>
                     ) : (
-                      <div className="space-y-4">
+                      <>
                         {messages.map((message) => {
                           const isCurrentUser = currentUser && message.senderId === currentUser.userId;
                           return (
@@ -453,17 +454,6 @@ const PhotographerMessagesPage = () => {
                                     : 'bg-muted'
                                 } rounded-lg p-3`}
                               >
-                                {message.attachmentUrl && (
-                                  <div className="mb-2">
-                                    {message.messageType === 'image' ? (
-                                      <img src={message.attachmentUrl} alt="Attachment" className="max-w-full rounded" />
-                                    ) : (
-                                      <a href={message.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-sm underline">
-                                        View attachment
-                                      </a>
-                                    )}
-                                  </div>
-                                )}
                                 <p className="text-sm">{message.text}</p>
                                 <div className={`flex items-center justify-end gap-1 mt-1 ${
                                   isCurrentUser
@@ -484,30 +474,24 @@ const PhotographerMessagesPage = () => {
                           );
                         })}
                         <div ref={messagesEndRef} />
-                        {/* Typing indicator */}
-                        {typingUsers.size > 0 && (
-                          <div className="flex justify-start">
-                            <div className="bg-muted rounded-lg px-4 py-2">
-                              <div className="flex space-x-1">
-                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                                <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                              </div>
-                            </div>
+                      </>
+                    )}
+                    {/* Typing indicator */}
+                    {typingUsers.size > 0 && (
+                      <div className="flex justify-start">
+                        <div className="bg-muted rounded-lg px-4 py-2">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                            <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                            <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
                           </div>
-                        )}
+                        </div>
                       </div>
                     )}
-                  </ScrollArea>
-                </>
-              ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
-                  Select a conversation to start messaging
-                </div>
-              )}
+                  </div>
+                </ScrollArea>
 
-              {/* Message Input */}
-              {selectedConversation && (
+                {/* Message Input */}
                 <div className="p-4 border-t border-border/50">
                   <div className="flex items-center space-x-2">
                     <Button variant="ghost" size="icon">
@@ -530,25 +514,20 @@ const PhotographerMessagesPage = () => {
                         handleTyping();
                       }}
                       onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey && !sending) {
+                        if (e.key === 'Enter' && !e.shiftKey) {
                           e.preventDefault();
                           handleSendMessage();
                         }
                       }}
                       className="flex-1"
-                      disabled={sending}
                     />
-                    <Button onClick={handleSendMessage} disabled={sending || !messageText.trim()}>
-                      {sending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4" />
-                      )}
+                    <Button onClick={handleSendMessage} disabled={sending}>
+                      {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     </Button>
                   </div>
                   <div className="flex items-center justify-between mt-2">
                     <p className="text-xs text-muted-foreground">
-                      📎 You can send photos, videos, and documents to your clients
+                      💬 Chat directly with photographers about your events and bookings
                     </p>
                     {connected && (
                       <span className="flex items-center text-xs text-green-500">
@@ -558,8 +537,14 @@ const PhotographerMessagesPage = () => {
                     )}
                   </div>
                 </div>
-              )}
-            </Card>
+              </Card>
+            ) : (
+              <Card className="glass-effect h-full flex items-center justify-center">
+                <div className="text-center text-muted-foreground">
+                  <p>Select a conversation to start messaging</p>
+                </div>
+              </Card>
+            )}
           </div>
 
           {/* Contact Info - Right Panel */}
@@ -568,35 +553,32 @@ const PhotographerMessagesPage = () => {
               <Card className="glass-effect h-full">
                 <div className="p-4 border-b border-border/50 text-center">
                   <Avatar className="w-20 h-20 mx-auto mb-3">
-                    <AvatarImage src={selectedConversation.participantAvatar || undefined} alt={selectedConversation.participantName} />
+                    <AvatarImage src={selectedConversation.participantAvatar} alt={selectedConversation.participantName} />
                     <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-lg">
                       {selectedConversation.participantName.split(' ').map(n => n[0]).join('')}
                     </AvatarFallback>
                   </Avatar>
                   <h3 className="font-semibold text-lg">{selectedConversation.participantName}</h3>
-                  <p className="text-sm text-muted-foreground">Customer</p>
+                  <p className="text-sm text-muted-foreground">Professional Photographer</p>
                 </div>
 
                 <ScrollArea className="h-[calc(100%-8rem)]">
-                <div className="p-4 space-y-4">
-                  {/* Booking Info */}
-                  {/* TODO: Add booking info when available */}
-                  {false && (
+                  <div className="p-4 space-y-4">
+                    {/* Booking Info */}
                     <div>
                       <h4 className="font-semibold mb-2 text-sm">Booking Information</h4>
                       <div className="p-3 bg-muted/30 rounded-lg space-y-2">
                         <div className="flex items-center space-x-2 text-sm">
                           <Calendar className="w-4 h-4 text-muted-foreground" />
-                          <span>Feb 18, 2024</span>
+                          <span>Mar 15, 2024</span>
                         </div>
                         <div className="flex items-center space-x-2 text-sm">
                           <MapPin className="w-4 h-4 text-muted-foreground" />
-                          <span>Leela Palace, Bangalore</span>
+                          <span>Grand Palace, Mumbai</span>
                         </div>
                         <Badge>Wedding</Badge>
                       </div>
                     </div>
-                  )}
 
                   {/* Quick Actions */}
                   <div>
@@ -604,7 +586,7 @@ const PhotographerMessagesPage = () => {
                     <div className="space-y-2">
                       <Button variant="outline" className="w-full justify-start" size="sm">
                         <Phone className="w-4 h-4 mr-2" />
-                        Call
+                        Call Photographer
                       </Button>
                       <Button variant="outline" className="w-full justify-start" size="sm">
                         <VideoIcon className="w-4 h-4 mr-2" />
@@ -612,7 +594,7 @@ const PhotographerMessagesPage = () => {
                       </Button>
                       <Button variant="outline" className="w-full justify-start" size="sm">
                         <Calendar className="w-4 h-4 mr-2" />
-                        View Booking
+                        View Portfolio
                       </Button>
                     </div>
                   </div>
@@ -623,8 +605,8 @@ const PhotographerMessagesPage = () => {
                     <p className="text-xs text-muted-foreground">No files shared yet</p>
                   </div>
                 </div>
-                </ScrollArea>
-              </Card>
+              </ScrollArea>
+            </Card>
             </div>
           )}
         </div>
@@ -633,5 +615,4 @@ const PhotographerMessagesPage = () => {
   );
 };
 
-export default PhotographerMessagesPage;
-
+export default CustomerMessagesPage;

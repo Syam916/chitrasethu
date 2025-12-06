@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.io Connection Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .status {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .success { background: #22c55e; }
+        .error { background: #ef4444; }
+        .warning { background: #f59e0b; }
+        .info { background: #3b82f6; }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #2563eb; }
+        #log {
+            background: #262626;
+            padding: 15px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #3b82f6;
+            padding-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔌 Socket.io Connection Tester</h1>
+    
+    <div id="status" class="status warning">Not connected</div>
+    
+    <div>
+        <button onclick="testConnection()">🔌 Test Connection</button>
+        <button onclick="testAuth()">🔑 Test Auth</button>
+        <button onclick="joinConversation()">👥 Join Conversation</button>
+        <button onclick="sendTestMessage()">📨 Send Test Message</button>
+        <button onclick="clearLog()">🗑️ Clear Log</button>
+    </div>
+    
+    <h3>📋 Console Log:</h3>
+    <div id="log"></div>
+    
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <script>
+        let socket = null;
+        const BACKEND_URL = 'http://localhost:5000';
+        
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.style.borderLeftColor = type === 'error' ? '#ef4444' : 
+                                         type === 'success' ? '#22c55e' : '#3b82f6';
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+        }
+        
+        function updateStatus(message, className) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${className}`;
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        async function testConnection() {
+            log('🔌 Testing connection to ' + BACKEND_URL);
+            
+            // Test HTTP first
+            try {
+                const response = await fetch(BACKEND_URL + '/health');
+                const data = await response.json();
+                log('✅ HTTP connection works: ' + JSON.stringify(data), 'success');
+            } catch (err) {
+                log('❌ HTTP connection failed: ' + err.message, 'error');
+                updateStatus('❌ Backend not reachable', 'error');
+                return;
+            }
+            
+            // Test Socket.io
+            const token = localStorage.getItem('token');
+            if (!token) {
+                log('⚠️ No JWT token found in localStorage', 'error');
+                log('💡 Please login first, then come back to this page', 'warning');
+                updateStatus('⚠️ No auth token', 'warning');
+                return;
+            }
+            
+            log('🔑 Token found: ' + token.substring(0, 20) + '...');
+            log('🔌 Connecting to Socket.io...');
+            
+            socket = io(BACKEND_URL, {
+                auth: {
+                    token: token
+                },
+                transports: ['websocket', 'polling']
+            });
+            
+            socket.on('connect', () => {
+                log('✅ Socket.io connected! Socket ID: ' + socket.id, 'success');
+                updateStatus('✅ Connected (Socket ID: ' + socket.id + ')', 'success');
+            });
+            
+            socket.on('connect_error', (error) => {
+                log('❌ Connection error: ' + error.message, 'error');
+                updateStatus('❌ Connection failed', 'error');
+            });
+            
+            socket.on('disconnect', (reason) => {
+                log('🔌 Disconnected: ' + reason, 'warning');
+                updateStatus('⚠️ Disconnected', 'warning');
+            });
+            
+            socket.on('error', (error) => {
+                log('❌ Socket error: ' + error.message, 'error');
+            });
+            
+            socket.on('new_message', (data) => {
+                log('📨 NEW MESSAGE: ' + JSON.stringify(data), 'success');
+            });
+            
+            socket.on('user_typing', (data) => {
+                log('⌨️ USER TYPING: ' + JSON.stringify(data));
+            });
+            
+            socket.on('message_read', (data) => {
+                log('✅ MESSAGE READ: ' + JSON.stringify(data), 'success');
+            });
+        }
+        
+        function testAuth() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                log('❌ No token in localStorage', 'error');
+                log('💡 Go to your app, login, then come back', 'warning');
+                return;
+            }
+            
+            log('🔑 Token exists: ' + token.substring(0, 30) + '...');
+            
+            fetch(BACKEND_URL + '/api/auth/me', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                log('✅ Auth works! User: ' + JSON.stringify(data), 'success');
+            })
+            .catch(err => {
+                log('❌ Auth failed: ' + err.message, 'error');
+            });
+        }
+        
+        function joinConversation() {
+            if (!socket || !socket.connected) {
+                log('❌ Socket not connected. Click "Test Connection" first', 'error');
+                return;
+            }
+            
+            const conversationId = prompt('Enter conversation ID (e.g., conv_1_2):');
+            if (!conversationId) return;
+            
+            log('👥 Joining conversation: ' + conversationId);
+            socket.emit('join_conversation', { conversationId });
+            log('✅ Join request sent', 'success');
+        }
+        
+        function sendTestMessage() {
+            if (!socket || !socket.connected) {
+                log('❌ Socket not connected. Click "Test Connection" first', 'error');
+                return;
+            }
+            
+            const conversationId = prompt('Enter conversation ID (e.g., conv_1_2):');
+            if (!conversationId) return;
+            
+            const message = {
+                id: Date.now(),
+                text: 'Test message from tester',
+                senderId: 1,
+                createdAt: new Date().toISOString()
+            };
+            
+            log('📨 Sending test message...');
+            socket.emit('send_message', { conversationId, message });
+            log('✅ Message sent', 'success');
+        }
+        
+        // Auto-test on load
+        window.onload = () => {
+            log('🚀 Socket.io Connection Tester loaded');
+            log('💡 Click "Test Connection" to start');
+            
+            // Check if token exists
+            const token = localStorage.getItem('token');
+            if (token) {
+                log('✅ Token found in localStorage');
+            } else {
+                log('⚠️ No token found. Please login first!', 'warning');
+            }
+        };
+    </script>
+</body>
+</html>
+

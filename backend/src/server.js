@@ -1,10 +1,12 @@
 import express from 'express';
+import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import compression from 'compression';
 import dotenv from 'dotenv';
 import { testConnection } from './config/database.js';
+import { initializeSocket } from './config/socket.js';
 
 // Load environment variables
 dotenv.config();
@@ -13,8 +15,10 @@ dotenv.config();
 import authRoutes from './routes/auth.routes.js';
 import photographerRoutes from './routes/photographer.routes.js';
 import postRoutes from './routes/post.routes.js';
+import messageRoutes from './routes/photographer/messages/messages.js';
 
 const app = express();
+const httpServer = createServer(app);
 const PORT = process.env.PORT || 5000;
 
 // ============================================================================
@@ -29,6 +33,7 @@ app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
     'http://localhost:8080',
+    'http://localhost:8081',
     'http://localhost:3000',
     'http://localhost:4173'
   ],
@@ -86,6 +91,7 @@ app.get('/api', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/photographers', photographerRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/messages', messageRoutes);
 
 // ============================================================================
 // ERROR HANDLING
@@ -127,14 +133,18 @@ const startServer = async () => {
       process.exit(1);
     }
     
+    // Initialize Socket.io
+    initializeSocket(httpServer);
+    
     // Start server
-    app.listen(PORT, () => {
+    httpServer.listen(PORT, () => {
       console.log('');
       console.log('🚀 ============================================');
       console.log(`🚀 Chitrasethu Backend Server`);
       console.log(`🚀 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🚀 Server running on: http://localhost:${PORT}`);
       console.log(`🚀 API endpoint: http://localhost:${PORT}/api`);
+      console.log(`🚀 WebSocket: ws://localhost:${PORT}`);
       console.log('🚀 ============================================');
       console.log('');
     });
