@@ -95,6 +95,22 @@ class SocketService {
     }
   }
 
+  // --- Voice call signaling helpers ---
+
+  // Send a generic voice call signal (offer/answer/ice/end)
+  sendVoiceSignal(
+    event:
+      | 'voice_call_offer'
+      | 'voice_call_answer'
+      | 'voice_call_ice_candidate'
+      | 'voice_call_end',
+    payload: any
+  ) {
+    if (this.socket?.connected) {
+      this.socket.emit(event, payload);
+    }
+  }
+
   // Leave a conversation room
   leaveConversation(conversationId: string) {
     if (this.socket?.connected) {

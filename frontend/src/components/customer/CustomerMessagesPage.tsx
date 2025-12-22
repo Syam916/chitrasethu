@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Paperclip, Image as ImageIcon, Video, File, Search, Phone, VideoIcon, MoreVertical, Calendar, MapPin, Loader2 } from 'lucide-react';
+import { Send, Paperclip, Image as ImageIcon, Video, File as FileIcon, Search, Phone, VideoIcon, MoreVertical, Calendar, MapPin, Loader2, Mic, MicOff } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -12,6 +12,7 @@ import authService, { User } from '@/services/auth.service';
 import messageService, { Conversation, Message } from '@/services/message.service';
 import { customerMessages } from '@/data/customerDummyData';
 import useSocket from '@/hooks/useSocket';
+import uploadService from '@/services/upload.service';
 
 const CustomerMessagesPage = () => {
   const navigate = useNavigate();
@@ -23,9 +24,22 @@ const CustomerMessagesPage = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [typingUsers, setTypingUsers] = useState<Set<number>>(new Set());
   const [isTyping, setIsTyping] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  
+  // Voice recording state
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const [shouldSendRecording, setShouldSendRecording] = useState(true);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<BlobPart[]>([]);
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const micButtonRef = useRef<HTMLButtonElement | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -105,25 +119,25 @@ const CustomerMessagesPage = () => {
       // Add message to current conversation if it matches
       if (selectedConversation?.conversationId === data.conversationId) {
         setMessages(prev => {
-          // Check if message already exists (prevents duplicates)
-          // Check by ID first (most reliable)
+          // Check for duplicate by ID
           const messageExistsById = prev.some(msg => msg.id === data.message.id);
+          if (messageExistsById) {
+            // Update existing message instead of adding duplicate
+            return prev.map(msg => msg.id === data.message.id ? data.message : msg);
+          }
           
-          // If message is from current user, check by content + timestamp (REST API response might have temp ID)
+          // For current user messages, also check by content + timestamp to avoid duplicates
           const isCurrentUserMessage = currentUser && data.message.senderId === currentUser.userId;
-          const messageExistsByContent = isCurrentUserMessage && prev.some(msg => 
-            msg.text === data.message.text && 
-            msg.senderId === data.message.senderId && 
-            Math.abs(new Date(msg.createdAt).getTime() - new Date(data.message.createdAt).getTime()) < 2000
-          );
-          
-          if (messageExistsById || messageExistsByContent) {
-            console.log('⚠️ Message already exists, skipping duplicate');
-            // Update existing message with latest data (in case ID changed or other fields updated)
-            if (messageExistsById) {
-              return prev.map(msg => msg.id === data.message.id ? data.message : msg);
+          if (isCurrentUserMessage) {
+            const messageExistsByContent = prev.some(msg => 
+              msg.text === data.message.text && 
+              msg.senderId === data.message.senderId && 
+              msg.attachmentUrl === data.message.attachmentUrl &&
+              Math.abs(new Date(msg.createdAt).getTime() - new Date(data.message.createdAt).getTime()) < 2000
+            );
+            if (messageExistsByContent) {
+              return prev;
             }
-            return prev;
           }
           
           return [...prev, data.message];
@@ -198,6 +212,20 @@ const CustomerMessagesPage = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Cleanup recording when conversation changes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        setShouldSendRecording(false);
+        mediaRecorderRef.current.stop();
+      }
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
+    };
+  }, [selectedConversation]);
+
   const loadConversations = async () => {
     try {
       setLoading(true);
@@ -248,8 +276,10 @@ const CustomerMessagesPage = () => {
     }, 2000);
   }, [selectedConversation, connected, currentUser, isTyping, socketService]);
 
-  const handleSendMessage = async () => {
-    if (!messageText.trim() || !selectedConversation || sending) return;
+  const handleSendMessage = async (payload?: { attachmentUrl?: string; messageType?: string; attachmentFileName?: string }) => {
+    const hasText = messageText.trim().length > 0;
+    const hasAttachment = !!payload?.attachmentUrl;
+    if (!selectedConversation || sending || (!hasText && !hasAttachment)) return;
 
     try {
       setSending(true);
@@ -262,13 +292,27 @@ const CustomerMessagesPage = () => {
       
       const newMessage = await messageService.sendMessage({
         conversationId: selectedConversation.conversationId,
-        messageText: messageText.trim(),
-        messageType: 'text'
+        messageText: hasText ? messageText.trim() : '',
+        messageType: payload?.messageType || (hasAttachment ? 'file' : 'text'),
+        attachmentUrl: payload?.attachmentUrl,
+        attachmentFileName: payload?.attachmentFileName,
       });
 
-      // Add new message to the list
-      setMessages(prev => [...prev, newMessage]);
-      setMessageText('');
+      // Check if message already exists before adding to prevent duplicates
+      setMessages(prev => {
+        const exists = prev.some(msg => 
+          msg.id === newMessage.id || 
+          (msg.text === newMessage.text && 
+           msg.senderId === newMessage.senderId && 
+           msg.attachmentUrl === newMessage.attachmentUrl &&
+           Math.abs(new Date(msg.createdAt).getTime() - new Date(newMessage.createdAt).getTime()) < 1000)
+        );
+        if (exists) {
+          return prev;
+        }
+        return [...prev, newMessage];
+      });
+      if (hasText) setMessageText('');
 
       // Update conversation's last message
       setConversations(prev => 
@@ -282,6 +326,35 @@ const CustomerMessagesPage = () => {
       console.error('Failed to send message:', error);
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'file') => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedConversation) return;
+    try {
+      setUploading(true);
+      setUploadProgress(0);
+
+      const folder = `chitrasethu/messages/conversation_${selectedConversation.conversationId}`;
+      const attachment = await uploadService.uploadAttachment(file, folder, (p) => setUploadProgress(p));
+
+      // Determine messageType for backend
+      const mime = file.type.toLowerCase();
+      const isImage = mime.startsWith('image/');
+      const msgType = isImage ? 'image' : 'file';
+
+      await handleSendMessage({ 
+        attachmentUrl: attachment.url, 
+        messageType: msgType,
+        attachmentFileName: attachment.fileName || file.name
+      });
+    } catch (err) {
+      console.error('Attachment upload failed:', err);
+    } finally {
+      setUploading(false);
+      setTimeout(() => setUploadProgress(0), 800);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -310,15 +383,155 @@ const CustomerMessagesPage = () => {
     conv.participantName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const startVoiceRecording = async (cancelOnStop = false) => {
+    if (!selectedConversation) return;
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setRecordingError('Voice messages are not supported in this browser.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+      });
+      recordedChunksRef.current = [];
+      setShouldSendRecording(!cancelOnStop);
+      setRecordingTime(0);
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        setIsRecording(false);
+        setRecordingTime(0);
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+
+        // Wait a bit to ensure all data chunks are collected
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        if (!shouldSendRecording) {
+          console.log('Recording cancelled by user');
+          recordedChunksRef.current = [];
+          return;
+        }
+
+        if (!recordedChunksRef.current.length) {
+          console.warn('No audio data recorded');
+          setRecordingError('No audio recorded. Please try again.');
+          recordedChunksRef.current = [];
+          return;
+        }
+
+        const blob = new Blob(recordedChunksRef.current, { type: 'audio/webm' });
+        
+        // Check if blob has content
+        if (blob.size === 0) {
+          console.warn('Recorded blob is empty');
+          setRecordingError('Recording is empty. Please try again.');
+          recordedChunksRef.current = [];
+          return;
+        }
+
+        const fileName = `voice-message-${Date.now()}.webm`;
+        const file = new File([blob], fileName, {
+          type: 'audio/webm',
+        });
+
+        console.log('Sending voice message:', { size: blob.size, fileName });
+
+        try {
+          setUploading(true);
+          setUploadProgress(0);
+          const folder = `chitrasethu/messages/conversation_${selectedConversation.conversationId}`;
+          const attachment = await uploadService.uploadAttachment(
+            file,
+            folder,
+            (p) => setUploadProgress(p)
+          );
+
+          console.log('Voice message uploaded:', attachment);
+
+          await handleSendMessage({
+            attachmentUrl: attachment.url,
+            messageType: 'file',
+            attachmentFileName: attachment.fileName || fileName,
+          });
+
+          console.log('Voice message sent successfully');
+          setRecordingError(null);
+        } catch (err) {
+          console.error('Voice message upload failed:', err);
+          setRecordingError('Failed to upload voice message. Please try again.');
+        } finally {
+          setUploading(false);
+          setTimeout(() => setUploadProgress(0), 800);
+          recordedChunksRef.current = [];
+        }
+      };
+
+      mediaRecorderRef.current = mediaRecorder;
+      // Start recording with timeslice to collect data chunks
+      mediaRecorder.start(100); // Collect data every 100ms for smoother recording
+      setIsRecording(true);
+      setRecordingError(null);
+      console.log('Recording started');
+
+      // Start timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('Failed to start voice recording:', err);
+      setRecordingError('Unable to access microphone.');
+    }
+  };
+
+  const stopVoiceRecording = (cancel = false) => {
+    if (mediaRecorderRef.current) {
+      const state = mediaRecorderRef.current.state;
+      console.log('Stopping recording:', { state, cancel });
+      
+      if (state === 'recording') {
+        setShouldSendRecording(!cancel);
+        // Request final data before stopping
+        mediaRecorderRef.current.requestData();
+        // Small delay to ensure data is collected
+        setTimeout(() => {
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+          }
+        }, 100);
+      } else if (state === 'paused') {
+        setShouldSendRecording(!cancel);
+        mediaRecorderRef.current.stop();
+      }
+    }
+  };
+
+  const formatRecordingTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       <NavbarIntegrated />
-      
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-12rem)]">
+
+      {/* Lock main content to viewport height so each section scrolls independently */}
+      <div className="container mx-auto px-4 py-4 h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 h-full overflow-hidden">
           {/* Conversations List - Left Panel */}
-          <div className="lg:col-span-4 xl:col-span-3">
-            <Card className="glass-effect h-full flex flex-col">
+          <div className="lg:col-span-4 xl:col-span-3 h-full overflow-hidden">
+            <Card className="glass-effect h-full flex flex-col overflow-hidden">
               <div className="p-4 border-b border-border/50">
                 <h2 className="text-2xl font-semibold mb-4">Messages</h2>
                 <div className="relative">
@@ -332,7 +545,8 @@ const CustomerMessagesPage = () => {
                 </div>
               </div>
 
-              <ScrollArea className="flex-1">
+              {/* Native scroll for conversation list */}
+              <div className="flex-1 h-full overflow-y-auto scrollbar-dark">
                 <div className="p-2">
                   {loading ? (
                     <div className="flex items-center justify-center py-8">
@@ -388,14 +602,14 @@ const CustomerMessagesPage = () => {
                     ))
                   )}
                 </div>
-              </ScrollArea>
+              </div>
             </Card>
           </div>
 
           {/* Chat Window - Center Panel */}
-          <div className="lg:col-span-8 xl:col-span-6">
+          <div className="lg:col-span-8 xl:col-span-6 h-full overflow-hidden">
             {selectedConversation ? (
-              <Card className="glass-effect h-full flex flex-col">
+              <Card className="glass-effect h-full flex flex-col overflow-hidden">
                 {/* Chat Header */}
                 <div className="p-4 border-b border-border/50">
                   <div className="flex items-center justify-between">
@@ -427,8 +641,8 @@ const CustomerMessagesPage = () => {
                   </div>
                 </div>
 
-                {/* Messages Area */}
-                <ScrollArea className="flex-1 p-4">
+                {/* Messages Area - scrollable container */}
+                <div className="flex-1 min-h-0 h-full overflow-y-auto p-4 scrollbar-dark">
                   <div className="space-y-4">
                     {loadingMessages ? (
                       <div className="flex items-center justify-center py-8">
@@ -440,11 +654,18 @@ const CustomerMessagesPage = () => {
                       </div>
                     ) : (
                       <>
-                        {messages.map((message) => {
+                        {messages.map((message, index) => {
                           const isCurrentUser = currentUser && message.senderId === currentUser.userId;
+                          const audioRegex = /\.(webm|mp3|wav|m4a|ogg)$/i;
+                          const isAudioAttachment =
+                            !!message.attachmentUrl &&
+                            (audioRegex.test(message.attachmentUrl) ||
+                              (message.attachmentFileName ? audioRegex.test(message.attachmentFileName) : false));
+                          // Create unique key combining id, timestamp, and index to avoid duplicates
+                          const uniqueKey = `${message.id}-${message.createdAt || message.timestamp || index}-${index}`;
                           return (
                             <div
-                              key={message.id}
+                              key={uniqueKey}
                               className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}
                             >
                               <div
@@ -454,7 +675,78 @@ const CustomerMessagesPage = () => {
                                     : 'bg-muted'
                                 } rounded-lg p-3`}
                               >
-                                <p className="text-sm">{message.text}</p>
+                                {message.attachmentUrl && (
+                                  <div className="mb-2">
+                                    {message.messageType === 'image' ? (
+                                      <div className="space-y-2">
+                                        <img 
+                                          src={message.attachmentUrl} 
+                                          alt={message.attachmentFileName || 'Image'} 
+                                          className="max-w-full rounded cursor-pointer hover:opacity-90 transition-opacity"
+                                          onClick={() => {
+                                            const link = document.createElement('a');
+                                            link.href = message.attachmentUrl!;
+                                            link.download = message.attachmentFileName || 'image.jpg';
+                                            document.body.appendChild(link);
+                                            link.click();
+                                            document.body.removeChild(link);
+                                          }}
+                                        />
+                                        {message.attachmentFileName && (
+                                          <a
+                                            href={message.attachmentUrl!}
+                                            download={message.attachmentFileName}
+                                            className="text-xs text-primary-foreground/80 hover:underline flex items-center gap-1"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              e.preventDefault();
+                                              // Force download with proper filename
+                                              const link = document.createElement('a');
+                                              link.href = message.attachmentUrl!;
+                                              link.download = message.attachmentFileName!;
+                                              document.body.appendChild(link);
+                                              link.click();
+                                              document.body.removeChild(link);
+                                            }}
+                                          >
+                                            📥 {message.attachmentFileName}
+                                          </a>
+                                        )}
+                                      </div>
+                                    ) : isAudioAttachment ? (
+                                      <div className="flex flex-col gap-2">
+                                        <audio
+                                          controls
+                                          src={message.attachmentUrl || undefined}
+                                          className="w-full max-w-xs"
+                                          onClick={(e) => e.stopPropagation()}
+                                          preload="metadata"
+                                        />
+                                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                          🎤 Voice message
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <a
+                                        href={message.attachmentUrl!}
+                                        download={message.attachmentFileName || 'attachment'}
+                                        target={message.attachmentFileName?.toLowerCase().endsWith('.pdf') ? '_blank' : '_self'}
+                                        rel="noopener noreferrer"
+                                        className="flex items-center gap-2 p-2 bg-background/50 rounded hover:bg-background/70 transition-colors cursor-pointer"
+                                        onClick={(e) => {
+                                          // Let the browser handle the download/open, just prevent bubbling to message click
+                                          e.stopPropagation();
+                                        }}
+                                      >
+                                        <FileIcon className="w-4 h-4" />
+                                        <span className="text-sm">
+                                          {message.attachmentFileName || 'View attachment'}
+                                        </span>
+                                      </a>
+                                    )}
+                                  </div>
+                                )}
+                                {message.text && <p className="text-sm">{message.text}</p>}
                                 <div className={`flex items-center justify-end gap-1 mt-1 ${
                                   isCurrentUser
                                     ? 'text-primary-foreground/70'
@@ -489,42 +781,129 @@ const CustomerMessagesPage = () => {
                       </div>
                     )}
                   </div>
-                </ScrollArea>
+                </div>
 
                 {/* Message Input */}
                 <div className="p-4 border-t border-border/50">
+                  {isRecording && (
+                    <div className="mb-2 flex items-center justify-between rounded-lg bg-destructive/20 border border-destructive/50 px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                          <div className="absolute inset-0 w-3 h-3 bg-red-500 rounded-full animate-ping opacity-75"></div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-destructive">
+                            Recording...
+                          </span>
+                          <span className="text-sm text-muted-foreground font-mono">
+                            {formatRecordingTime(recordingTime)}
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => stopVoiceRecording(true)}
+                        className="flex items-center gap-1"
+                      >
+                        <span>Cancel</span>
+                      </Button>
+                    </div>
+                  )}
                   <div className="flex items-center space-x-2">
-                    <Button variant="ghost" size="icon">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                      className="hidden"
+                      onChange={(e) => handleFileSelect(e, 'file')}
+                      disabled={uploading || isRecording}
+                    />
+                    <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} disabled={uploading || isRecording}>
                       <Paperclip className="w-5 h-5" />
                     </Button>
-                    <Button variant="ghost" size="icon">
-                      <ImageIcon className="w-5 h-5" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <Video className="w-5 h-5" />
-                    </Button>
-                    <Button variant="ghost" size="icon">
-                      <File className="w-5 h-5" />
+                    <Button
+                      ref={micButtonRef}
+                      variant={isRecording ? 'destructive' : 'ghost'}
+                      size="icon"
+                      onMouseDown={(e) => {
+                        if (!isRecording && !uploading) {
+                          e.preventDefault();
+                          startVoiceRecording();
+                        }
+                      }}
+                      onMouseUp={(e) => {
+                        if (isRecording) {
+                          e.preventDefault();
+                          stopVoiceRecording();
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (isRecording) {
+                          e.preventDefault();
+                          stopVoiceRecording();
+                        }
+                      }}
+                      onTouchStart={(e) => {
+                        if (!isRecording && !uploading) {
+                          e.preventDefault();
+                          startVoiceRecording();
+                        }
+                      }}
+                      onTouchEnd={(e) => {
+                        if (isRecording) {
+                          e.preventDefault();
+                          stopVoiceRecording();
+                        }
+                      }}
+                      onClick={(e) => {
+                        // Fallback for click if mouse events don't work
+                        if (!isRecording && !uploading) {
+                          e.preventDefault();
+                          startVoiceRecording();
+                        } else if (isRecording) {
+                          e.preventDefault();
+                          stopVoiceRecording();
+                        }
+                      }}
+                      disabled={uploading}
+                      className="relative"
+                    >
+                      {isRecording ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                      {isRecording && (
+                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                      )}
                     </Button>
                     <Input
-                      placeholder="Type your message..."
+                      placeholder={isRecording ? "Recording voice message..." : "Type your message..."}
                       value={messageText}
                       onChange={(e) => {
                         setMessageText(e.target.value);
                         handleTyping();
                       }}
                       onKeyPress={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
+                        if (e.key === 'Enter' && !e.shiftKey && !sending && !isRecording) {
                           e.preventDefault();
                           handleSendMessage();
                         }
                       }}
                       className="flex-1"
+                      disabled={sending || isRecording}
                     />
-                    <Button onClick={handleSendMessage} disabled={sending}>
+                    <Button onClick={() => handleSendMessage()} disabled={sending || uploading || isRecording}>
                       {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                     </Button>
                   </div>
+                  {uploading && (
+                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Uploading voice message... {uploadProgress}%</span>
+                    </div>
+                  )}
+                  {recordingError && (
+                    <div className="text-xs text-destructive mt-1">{recordingError}</div>
+                  )}
                   <div className="flex items-center justify-between mt-2">
                     <p className="text-xs text-muted-foreground">
                       💬 Chat directly with photographers about your events and bookings
@@ -549,8 +928,8 @@ const CustomerMessagesPage = () => {
 
           {/* Contact Info - Right Panel */}
           {selectedConversation && (
-            <div className="lg:col-span-12 xl:col-span-3 xl:block hidden">
-              <Card className="glass-effect h-full">
+            <div className="lg:col-span-12 xl:col-span-3 xl:block hidden h-full overflow-hidden">
+              <Card className="glass-effect h-full overflow-hidden flex flex-col">
                 <div className="p-4 border-b border-border/50 text-center">
                   <Avatar className="w-20 h-20 mx-auto mb-3">
                     <AvatarImage src={selectedConversation.participantAvatar} alt={selectedConversation.participantName} />
@@ -562,7 +941,7 @@ const CustomerMessagesPage = () => {
                   <p className="text-sm text-muted-foreground">Professional Photographer</p>
                 </div>
 
-                <ScrollArea className="h-[calc(100%-8rem)]">
+                <ScrollArea className="h-[calc(100%-8rem)] scrollbar-dark">
                   <div className="p-4 space-y-4">
                     {/* Booking Info */}
                     <div>

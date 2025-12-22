@@ -117,6 +117,8 @@ CREATE TABLE photographers (
     equipment JSON,
     languages JSON,
     services_offered JSON,
+    certifications TEXT,
+    awards TEXT,
     work_radius INT DEFAULT 50,
     is_verified BOOLEAN DEFAULT FALSE,
     is_premium BOOLEAN DEFAULT FALSE,
@@ -148,13 +150,15 @@ CREATE TABLE photographer_portfolios (
     views_count INT DEFAULT 0,
     is_featured BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+    post_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (photographer_id) REFERENCES photographers(photographer_id) ON DELETE CASCADE,
     INDEX idx_photographer_id (photographer_id),
     INDEX idx_category (category),
     INDEX idx_display_order (display_order),
-    INDEX idx_is_featured (is_featured)
+    INDEX idx_is_featured (is_featured),
+    INDEX idx_post_id (post_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Table: photographer_availability

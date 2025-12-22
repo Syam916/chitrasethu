@@ -1,14 +1,19 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
 import NavbarIntegrated from './home/NavbarIntegrated';
 import HeroSection from './home/HeroSection';
 import LeftSidebar from './home/LeftSidebar';
 import MainFeed from './home/MainFeed';
 import RightSidebar from './home/RightSidebar';
+import CreatePostDialog from './home/CreatePostDialog';
+import { Button } from './ui/button';
 import authService from '@/services/auth.service';
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const [createPostOpen, setCreatePostOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -16,6 +21,12 @@ const HomePage = () => {
       navigate('/login');
     }
   }, [navigate]);
+
+  const handlePostCreated = () => {
+    // Trigger feed refresh
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       {/* Navbar */}
@@ -34,7 +45,19 @@ const HomePage = () => {
           
           {/* Main Feed - 60% */}
           <div className="lg:col-span-3">
-            <MainFeed />
+            {/* Create Post Button */}
+            <div className="mb-6">
+              <Button
+                onClick={() => setCreatePostOpen(true)}
+                className="w-full py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                size="lg"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Create New Post
+              </Button>
+            </div>
+
+            <MainFeed refreshTrigger={refreshTrigger} />
           </div>
           
           {/* Right Sidebar - 20% */}
@@ -43,6 +66,13 @@ const HomePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Create Post Dialog */}
+      <CreatePostDialog
+        open={createPostOpen}
+        onOpenChange={setCreatePostOpen}
+        onPostCreated={handlePostCreated}
+      />
     </div>
   );
 };

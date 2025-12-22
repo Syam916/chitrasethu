@@ -22,6 +22,9 @@ export interface User {
   avatarUrl?: string;
   phone?: string;
   location?: string;
+  city?: string;
+  state?: string;
+  bio?: string;
 }
 
 export interface AuthResponse {
@@ -155,6 +158,7 @@ class AuthService {
     city?: string;
     state?: string;
     bio?: string;
+    avatarUrl?: string;
   }): Promise<User> {
     try {
       const response = await fetch(`${API_ENDPOINTS.AUTH.ME.replace('/me', '/profile')}`, {

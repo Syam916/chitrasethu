@@ -127,6 +127,29 @@ All colors MUST be HSL.
 }
 
 @layer utilities {
+  /* Custom dark scrollbars for app sections */
+  .scrollbar-dark {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.5) hsl(var(--background));
+  }
+
+  .scrollbar-dark::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-track {
+    background: hsl(var(--background));
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.5);
+    border-radius: 9999px;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb:hover {
+    background-color: hsl(var(--muted-foreground));
+  }
+
   /* Photography Website Utilities */
   .glass-effect {
     background: var(--gradient-glass);

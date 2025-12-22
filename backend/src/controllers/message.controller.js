@@ -152,22 +152,40 @@ export const getMessages = async (req, res) => {
     `, [userId, otherUserId]);
 
     // Format messages
-    const formattedMessages = messages.map(msg => ({
-      id: msg.message_id,
-      sender: msg.sender_id === userId ? 'photographer' : 'customer',
-      senderId: msg.sender_id,
-      receiverId: msg.receiver_id,
-      text: msg.message_text,
-      messageType: msg.message_type,
-      attachmentUrl: msg.attachment_url,
-      isRead: msg.is_read,
-      timestamp: new Date(msg.created_at).toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true 
-      }),
-      createdAt: msg.created_at
-    }));
+    const formattedMessages = messages.map(msg => {
+      // Extract filename from URL if present
+      let attachmentFileName = null;
+      if (msg.attachment_url) {
+        try {
+          const url = new URL(msg.attachment_url);
+          attachmentFileName = url.searchParams.get('filename');
+        } catch (e) {
+          // Try manual parsing if URL parsing fails
+          const filenameMatch = msg.attachment_url.match(/[?&]filename=([^&]+)/);
+          if (filenameMatch) {
+            attachmentFileName = decodeURIComponent(filenameMatch[1]);
+          }
+        }
+      }
+
+      return {
+        id: msg.message_id,
+        sender: msg.sender_id === userId ? 'photographer' : 'customer',
+        senderId: msg.sender_id,
+        receiverId: msg.receiver_id,
+        text: msg.message_text,
+        messageType: msg.message_type,
+        attachmentUrl: msg.attachment_url,
+        attachmentFileName: attachmentFileName,
+        isRead: msg.is_read,
+        timestamp: new Date(msg.created_at).toLocaleTimeString('en-US', { 
+          hour: 'numeric', 
+          minute: '2-digit',
+          hour12: true 
+        }),
+        createdAt: msg.created_at
+      };
+    });
 
     res.status(200).json({
       status: 'success',
@@ -190,7 +208,7 @@ export const getMessages = async (req, res) => {
 export const sendMessage = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { conversationId, messageText, messageType = 'text', attachmentUrl } = req.body;
+    const { conversationId, messageText, messageType = 'text', attachmentUrl, attachmentFileName } = req.body;
 
     if (!messageText && !attachmentUrl) {
       return res.status(400).json({
@@ -235,6 +253,7 @@ export const sendMessage = async (req, res) => {
       text: newMessage.message_text,
       messageType: newMessage.message_type,
       attachmentUrl: newMessage.attachment_url,
+      attachmentFileName: attachmentFileName || null,
       isRead: newMessage.is_read,
       timestamp: new Date(newMessage.created_at).toLocaleTimeString('en-US', { 
         hour: 'numeric', 

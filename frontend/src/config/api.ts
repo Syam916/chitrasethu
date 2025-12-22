@@ -14,11 +14,31 @@ export const API_ENDPOINTS = {
   PHOTOGRAPHERS: {
     LIST: `${API_BASE_URL}/photographers`,
     DETAIL: (id: number) => `${API_BASE_URL}/photographers/${id}`,
+    ME: `${API_BASE_URL}/photographers/me`,
+    ME_PORTFOLIO: `${API_BASE_URL}/photographers/me/portfolio`,
+    ME_PORTFOLIO_ITEM: (id: number) => `${API_BASE_URL}/photographers/me/portfolio/${id}`,
+    FOLLOW: (id: number) => `${API_BASE_URL}/photographers/${id}/follow`,
+    FOLLOW_STATUS: (id: number) => `${API_BASE_URL}/photographers/${id}/follow/status`,
+    FOLLOWERS: (id: number) => `${API_BASE_URL}/photographers/${id}/followers`,
+    FOLLOWING: (id: number) => `${API_BASE_URL}/photographers/${id}/following`,
+    ME_FOLLOWING: `${API_BASE_URL}/photographers/me/following`,
   },
   // Posts
   POSTS: {
     LIST: `${API_BASE_URL}/posts`,
     DETAIL: (id: number) => `${API_BASE_URL}/posts/${id}`,
+    CREATE: `${API_BASE_URL}/posts`,
+    DELETE: (id: number) => `${API_BASE_URL}/posts/${id}`,
+    LIKE: (id: number) => `${API_BASE_URL}/posts/${id}/like`,
+    COMMENTS: (id: number) => `${API_BASE_URL}/posts/${id}/comments`,
+    COMMENT: (id: number) => `${API_BASE_URL}/posts/${id}/comment`,
+    LIKES: (id: number) => `${API_BASE_URL}/posts/${id}/likes`,
+  },
+  // Upload
+  UPLOAD: {
+    PHOTO: `${API_BASE_URL}/upload/photo`,
+    PHOTOS: `${API_BASE_URL}/upload/photos`,
+    DELETE: (publicId: string) => `${API_BASE_URL}/upload/photo/${publicId}`,
   },
   // Events
   EVENTS: {

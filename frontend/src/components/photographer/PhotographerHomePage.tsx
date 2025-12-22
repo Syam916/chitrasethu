@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, TrendingUp, Calendar, DollarSign, MessageSquare as MessageSquareIcon } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, TrendingUp, Calendar, DollarSign, MessageSquare as MessageSquareIcon, Plus, Camera, Video } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
@@ -8,20 +8,28 @@ import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import PhotographerNavbar from './PhotographerNavbar';
 import PhotographerLeftSidebar from './PhotographerLeftSidebar';
+import CreatePostDialog from '../home/CreatePostDialog';
+import MainFeed from '../home/MainFeed';
 import authService from '@/services/auth.service';
-import { photographerFeedPosts, photographerStats, photographerBookingRequests, photographerBookings } from '@/data/photographerDummyData';
+import { photographerStats, photographerBookingRequests, photographerBookings } from '@/data/photographerDummyData';
 import defaultAvatar from '@/assets/photographer-1.jpg';
 
 const PhotographerHomePage = () => {
   const navigate = useNavigate();
   const [likedPosts, setLikedPosts] = useState<number[]>([]);
   const [savedPosts, setSavedPosts] = useState<number[]>([]);
+  const [createPostOpen, setCreatePostOpen] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       navigate('/login');
     }
   }, [navigate]);
+
+  const handlePostCreated = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
 
   const toggleLike = (postId: number) => {
     setLikedPosts(prev => 
@@ -102,112 +110,52 @@ const PhotographerHomePage = () => {
               </Card>
             </div>
 
-            {/* Feed Posts */}
-            <div className="space-y-6">
-              {photographerFeedPosts.map((post) => (
-                <Card key={post.id} className="glass-effect overflow-hidden hover:shadow-elegant transition-all duration-300">
-                  {/* Post Header */}
-                  <div className="p-4 border-b border-border/50">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="w-10 h-10 ring-2 ring-primary/20">
-                          <AvatarImage src={post.photographer.avatar} alt={post.photographer.name} />
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
-                            {post.photographer.name.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <div className="flex items-center space-x-1">
-                            <h3 className="font-semibold text-sm">{post.photographer.name}</h3>
-                            {post.photographer.verified && (
-                              <Badge variant="secondary" className="text-xs px-1">✓</Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground">{post.photographer.username}</p>
-                          <p className="text-xs text-muted-foreground">{post.content.location} • {post.engagement.timestamp}</p>
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Post Media */}
-                  <div className="relative">
-                    <div className="aspect-square bg-muted/20">
-                      <img 
-                        src={post.content.media[0]} 
-                        alt="Post content" 
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Post Actions & Content */}
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-4">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className={`flex items-center space-x-1 ${likedPosts.includes(post.id) ? 'text-red-500' : ''}`}
-                          onClick={() => toggleLike(post.id)}
-                        >
-                          <Heart className={`w-5 h-5 ${likedPosts.includes(post.id) ? 'fill-current' : ''}`} />
-                          <span className="text-sm font-medium">{post.engagement.likes + (likedPosts.includes(post.id) ? 1 : 0)}</span>
-                        </Button>
-                        
-                        <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                          <MessageCircle className="w-5 h-5" />
-                          <span className="text-sm font-medium">{post.engagement.comments}</span>
-                        </Button>
-                        
-                        <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                          <Share2 className="w-5 h-5" />
-                          <span className="text-sm font-medium">{post.engagement.shares}</span>
-                        </Button>
-                      </div>
-                      
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={savedPosts.includes(post.id) ? 'text-primary' : ''}
-                        onClick={() => toggleSave(post.id)}
-                      >
-                        <Bookmark className={`w-5 h-5 ${savedPosts.includes(post.id) ? 'fill-current' : ''}`} />
-                      </Button>
-                    </div>
-
-                    <p className="text-sm leading-relaxed mb-2">{post.content.caption}</p>
-                    
-                    <div className="flex flex-wrap gap-2">
-                      {post.tags.map((tag, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-
-                    {/* Add Comment */}
-                    <div className="flex items-center space-x-3 mt-4 pt-3 border-t border-border/50">
-                      <Avatar className="w-8 h-8">
-                          <AvatarImage src={defaultAvatar} alt="Your avatar" />
-                        <AvatarFallback className="text-xs bg-muted">You</AvatarFallback>
-                      </Avatar>
-                      <Input 
-                        placeholder="Add a comment..."
-                        className="flex-1 bg-muted/30 border-none text-sm"
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            {/* Create Post Button */}
+            <div className="mb-6">
+              <Button
+                onClick={() => setCreatePostOpen(true)}
+                className="w-full py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                size="lg"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Create New Post
+              </Button>
             </div>
+
+            {/* Feed Posts */}
+            <MainFeed refreshTrigger={refreshTrigger} />
           </div>
           
           {/* Right Sidebar - 20% */}
           <div className="lg:col-span-1 space-y-6">
+            {/* Create Post Section */}
+            <Card className="glass-effect">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center space-x-2">
+                  <Plus className="w-5 h-5 text-primary" />
+                  <span>Create Post</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <Button className="w-full justify-start bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary">
+                    <Camera className="w-4 h-4 mr-2" />
+                    Share Photos
+                  </Button>
+                  
+                  <Button variant="outline" className="w-full justify-start">
+                    <Video className="w-4 h-4 mr-2" />
+                    Upload Video
+                  </Button>
+                  
+                  <Button variant="outline" className="w-full justify-start">
+                    <Calendar className="w-4 h-4 mr-2" />
+                    Create Event
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Upcoming Events */}
             <Card className="glass-effect">
               <CardHeader>
@@ -310,6 +258,13 @@ const PhotographerHomePage = () => {
           </div>
         </div>
       </div>
+
+      {/* Create Post Dialog */}
+      <CreatePostDialog
+        open={createPostOpen}
+        onOpenChange={setCreatePostOpen}
+        onPostCreated={handlePostCreated}
+      />
     </div>
   );
 };

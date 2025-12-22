@@ -72,6 +72,7 @@ const App = () => (
         <Route path="/photographer/maps" element={<PhotographerMaps />} />
         <Route path="/photographer/messages" element={<PhotographerMessages />} />
         <Route path="/photographer/profile/edit" element={<PhotographerProfileEdit />} />
+        <Route path="/photographer/profile/:id" element={<PhotographerProfilePublic />} />
         <Route path="/photographer/profile/public" element={<PhotographerProfilePublic />} />
         <Route path="/photographer/event-photos" element={<PhotographerEventPhotos />} />
         <Route path="/photographer/event-photos/create" element={<PhotographerEventSessionCreate />} />

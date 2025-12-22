@@ -239,14 +239,22 @@ export const getCurrentUser = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { fullName, phone, location, city, state, bio } = req.body;
+    const { fullName, phone, location, city, state, bio, avatarUrl } = req.body;
 
-    // Update user profile
+    // Update user profile (only overwrite fields provided)
     await query(
       `UPDATE user_profiles 
-       SET full_name = $1, phone = $2, location = $3, city = $4, state = $5, bio = $6, updated_at = NOW()
-       WHERE user_id = $7`,
-      [fullName, phone, location, city, state, bio, userId]
+       SET 
+         full_name    = COALESCE($1, full_name),
+         phone        = COALESCE($2, phone),
+         location     = COALESCE($3, location),
+         city         = COALESCE($4, city),
+         state        = COALESCE($5, state),
+         bio          = COALESCE($6, bio),
+         avatar_url   = COALESCE($7, avatar_url),
+         updated_at   = NOW()
+       WHERE user_id = $8`,
+      [fullName, phone, location, city, state, bio, avatarUrl, userId]
     );
 
     // Get updated user data

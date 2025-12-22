@@ -19,6 +19,7 @@ export interface Message {
   text: string;
   messageType: string;
   attachmentUrl?: string;
+  attachmentFileName?: string;
   isRead: boolean;
   timestamp: string;
   createdAt: string;
@@ -29,6 +30,7 @@ export interface SendMessageData {
   messageText: string;
   messageType?: string;
   attachmentUrl?: string;
+  attachmentFileName?: string;
 }
 
 class MessageService {

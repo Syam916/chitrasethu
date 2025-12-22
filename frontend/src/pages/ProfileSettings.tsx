@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,9 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Camera, User, Mail, Phone, MapPin, Calendar, Shield, Edit3, Save, X } from 'lucide-react';
+import { Camera, User, Mail, Phone, MapPin, Calendar, Shield, Edit3, Save, X, UserPlus } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import authService from '@/services/auth.service';
+import uploadService from '@/services/upload.service';
+import followService from '@/services/follow.service';
+import FollowersFollowingModal from '@/components/ui/FollowersFollowingModal';
+import { useToast } from '@/hooks/use-toast';
 
 interface User {
   userId: number;
@@ -27,12 +31,19 @@ interface User {
 
 const ProfileSettings = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarProgress, setAvatarProgress] = useState(0);
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [followingModalOpen, setFollowingModalOpen] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -53,7 +64,15 @@ const ProfileSettings = () => {
         }
 
         const userData = await authService.getCurrentUser();
+        
+        // If user is a photographer, redirect to photographer profile
+        if (userData.userType === 'photographer') {
+          navigate('/photographer/profile/public');
+          return;
+        }
+        
         setUser(userData);
+        setAvatarUrl(userData.avatarUrl);
         setFormData({
           fullName: userData.fullName || '',
           email: userData.email || '',
@@ -63,6 +82,16 @@ const ProfileSettings = () => {
           state: userData.state || '',
           bio: userData.bio || ''
         });
+
+        // Load following count for customers
+        if (userData.userType === 'customer') {
+          try {
+            const followingData = await followService.getMyFollowing(1, 0);
+            setFollowingCount(followingData.total);
+          } catch (err) {
+            console.error('Failed to load following count:', err);
+          }
+        }
       } catch (error) {
         console.error('Error loading user:', error);
         setError('Failed to load user data');
@@ -82,6 +111,32 @@ const ProfileSettings = () => {
     }));
   };
 
+  const handleAvatarSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setAvatarUploading(true);
+      setAvatarProgress(0);
+
+      const validationError = uploadService.validateFile(file, 10);
+      if (validationError) throw new Error(validationError);
+
+      const userId = user?.userId;
+      const folder = userId ? `chitrasethu/avatars/user_${userId}` : 'chitrasethu/avatars';
+
+      const uploaded = await uploadService.uploadPhoto(file, folder, (p) => setAvatarProgress(p));
+      setAvatarUrl(uploaded.url);
+      setSuccess('Profile photo uploaded. Click Save to persist.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload photo');
+    } finally {
+      setAvatarUploading(false);
+      setTimeout(() => setAvatarProgress(0), 800);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setError('');
@@ -94,12 +149,14 @@ const ProfileSettings = () => {
         location: formData.location,
         city: formData.city,
         state: formData.state,
-        bio: formData.bio
+        bio: formData.bio,
+        avatarUrl,
       });
       
       setSuccess('Profile updated successfully!');
       setEditing(false);
       setUser(updatedUser);
+      setAvatarUrl(updatedUser.avatarUrl);
     } catch (err: any) {
       setError(err.message || 'Failed to update profile. Please try again.');
     } finally {
@@ -225,12 +282,32 @@ const ProfileSettings = () => {
               <Card className="border-border/50 shadow-2xl backdrop-blur-sm bg-card/95">
                 <CardHeader className="text-center pb-4">
                   <div className="flex justify-center mb-4">
-                    <Avatar className="w-24 h-24 ring-4 ring-primary/20">
-                      <AvatarImage src={user.avatarUrl} alt={user.fullName} />
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-2xl">
-                        {getInitials(user.fullName)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative">
+                      <Avatar className="w-24 h-24 ring-4 ring-primary/20">
+                        <AvatarImage src={avatarUrl} alt={user.fullName} />
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-2xl">
+                          {getInitials(user.fullName)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
+                        className="hidden"
+                        onChange={handleAvatarSelect}
+                        disabled={avatarUploading}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="absolute -bottom-2 left-1/2 -translate-x-1/2"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={avatarUploading}
+                      >
+                        <Camera className="w-4 h-4 mr-1" />
+                        {avatarUploading ? `Uploading ${avatarProgress}%` : 'Change'}
+                      </Button>
+                    </div>
                   </div>
                   <CardTitle className="text-xl font-playfair">{user.fullName}</CardTitle>
                   <div className="flex items-center justify-center space-x-2 mt-2">
@@ -262,6 +339,17 @@ const ProfileSettings = () => {
                         <MapPin className="w-4 h-4 text-muted-foreground" />
                         <span className="text-muted-foreground">{user.location}</span>
                       </div>
+                    )}
+                    {user.userType === 'customer' && (
+                      <button
+                        onClick={() => setFollowingModalOpen(true)}
+                        className="flex items-center space-x-3 w-full text-left hover:opacity-80 transition-opacity cursor-pointer"
+                      >
+                        <UserPlus className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          <span className="font-semibold">{followingCount}</span> following
+                        </span>
+                      </button>
                     )}
                   </div>
                 </CardContent>
@@ -468,6 +556,17 @@ const ProfileSettings = () => {
           </div>
         </div>
       </div>
+
+      {/* Following Modal for Customers */}
+      {user?.userType === 'customer' && (
+        <FollowersFollowingModal
+          open={followingModalOpen}
+          onOpenChange={setFollowingModalOpen}
+          photographerId={0} // Not used for my following
+          type="following"
+          title="Following"
+        />
+      )}
     </div>
   );
 };

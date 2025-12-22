@@ -186,6 +186,8 @@ CREATE TABLE IF NOT EXISTS photographers (
     equipment JSONB,
     languages JSONB,
     services_offered JSONB,
+    certifications TEXT,
+    awards TEXT,
     work_radius INT DEFAULT 50,
     is_verified BOOLEAN DEFAULT FALSE,
     is_premium BOOLEAN DEFAULT FALSE,
@@ -216,6 +218,7 @@ CREATE TABLE IF NOT EXISTS photographer_portfolios (
     views_count INT DEFAULT 0,
     is_featured BOOLEAN DEFAULT FALSE,
     is_active BOOLEAN DEFAULT TRUE,
+    post_id INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_portfolios_photographer FOREIGN KEY (photographer_id) REFERENCES photographers(photographer_id) ON DELETE CASCADE

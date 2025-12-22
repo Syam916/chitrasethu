@@ -16,6 +16,7 @@ import authRoutes from './routes/auth.routes.js';
 import photographerRoutes from './routes/photographer.routes.js';
 import postRoutes from './routes/post.routes.js';
 import messageRoutes from './routes/photographer/messages/messages.js';
+import uploadRoutes from './routes/upload.routes.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -92,6 +93,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/photographers', photographerRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // ============================================================================
 // ERROR HANDLING
