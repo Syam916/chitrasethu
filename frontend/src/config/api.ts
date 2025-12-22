@@ -28,6 +28,7 @@ export const API_ENDPOINTS = {
   // Bookings
   BOOKINGS: {
     LIST: `${API_BASE_URL}/bookings`,
+    CREATE: `${API_BASE_URL}/bookings`,
     DETAIL: (id: number) => `${API_BASE_URL}/bookings/${id}`,
   },
   // Messages
@@ -37,6 +38,22 @@ export const API_ENDPOINTS = {
     SEND: `${API_BASE_URL}/messages/send`,
     MARK_READ: (id: string) => `${API_BASE_URL}/messages/conversations/${id}/read`,
   },
+ // Jobs
+ JOBS: {
+  LIST: `${API_BASE_URL}/jobs`,
+  CREATE: `${API_BASE_URL}/jobs`,
+  DETAIL: (id: number) => `${API_BASE_URL}/jobs/${id}`,
+  APPLY: (id: number) => `${API_BASE_URL}/jobs/${id}/apply`,
+  ANALYSIS: `${API_BASE_URL}/jobs/analysis`,
+  UPDATE_APPLICATION_STATUS: (applicationId: number) => `${API_BASE_URL}/jobs/applications/${applicationId}/status`,
+},
+ // Booking Requests
+ BOOKING_REQUESTS: {
+  LIST: `${API_BASE_URL}/photographer/requests`,
+  ACCEPT: (id: number) => `${API_BASE_URL}/photographer/requests/${id}/accept`,
+  DECLINE: (id: number) => `${API_BASE_URL}/photographer/requests/${id}/decline`,
+  REQUEST_INFO: (id: number) => `${API_BASE_URL}/photographer/requests/${id}/request-info`,
+},
 };
 
 // Helper function to get auth header
@@ -58,4 +75,3 @@ export const handleApiError = (error: any) => {
     return error.message || 'An unexpected error occurred';
   }
 };
-

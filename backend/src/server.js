@@ -16,6 +16,9 @@ import authRoutes from './routes/auth.routes.js';
 import photographerRoutes from './routes/photographer.routes.js';
 import postRoutes from './routes/post.routes.js';
 import messageRoutes from './routes/photographer/messages/messages.js';
+import jobRoutes from './routes/job.routes.js';
+import bookingRoutes from './routes/booking.routes.js';
+
 
 const app = express();
 const httpServer = createServer(app);
@@ -80,6 +83,7 @@ app.get('/api', (req, res) => {
       bookings: '/api/bookings',
       events: '/api/events',
       posts: '/api/posts',
+      jobs: '/api/jobs',
       collections: '/api/collections',
       messages: '/api/messages',
       notifications: '/api/notifications'
@@ -92,6 +96,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/photographers', photographerRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api', bookingRoutes);
 
 // ============================================================================
 // ERROR HANDLING
