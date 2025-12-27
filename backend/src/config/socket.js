@@ -164,6 +164,50 @@ export const initializeSocket = (server) => {
       });
     });
 
+    // Handle joining a discussion room
+    socket.on('join_discussion', ({ topicId }) => {
+      try {
+        const room = `discussion_${topicId}`;
+        socket.join(room);
+        console.log(`👥 User ${socket.userId} joined discussion: ${topicId}`);
+      } catch (error) {
+        console.error('Join discussion error:', error);
+      }
+    });
+
+    // Handle leaving a discussion room
+    socket.on('leave_discussion', ({ topicId }) => {
+      try {
+        const room = `discussion_${topicId}`;
+        socket.leave(room);
+        console.log(`👋 User ${socket.userId} left discussion: ${topicId}`);
+      } catch (error) {
+        console.error('Leave discussion error:', error);
+      }
+    });
+
+    // Handle joining a group room
+    socket.on('join_group', ({ groupId }) => {
+      try {
+        const room = `group_${groupId}`;
+        socket.join(room);
+        console.log(`👥 User ${socket.userId} joined group: ${groupId}`);
+      } catch (error) {
+        console.error('Join group error:', error);
+      }
+    });
+
+    // Handle leaving a group room
+    socket.on('leave_group', ({ groupId }) => {
+      try {
+        const room = `group_${groupId}`;
+        socket.leave(room);
+        console.log(`👋 User ${socket.userId} left group: ${groupId}`);
+      } catch (error) {
+        console.error('Leave group error:', error);
+      }
+    });
+
     // Handle disconnection
     socket.on('disconnect', () => {
       console.log(`🔌 User disconnected: ${socket.userId} (Socket ID: ${socket.id})`);
@@ -210,5 +254,19 @@ export const emitToConversation = (conversationId, event, data) => {
   }
 };
 
-export default { initializeSocket, getIO, emitToUser, emitToConversation };
+// Emit event to all connected clients (for Community Buzz)
+export const emitToAll = (event, data) => {
+  if (io) {
+    io.emit(event, data);
+  }
+};
+
+// Emit event to a specific room (for groups, discussions, etc.)
+export const emitToRoom = (room, event, data) => {
+  if (io) {
+    io.to(room).emit(event, data);
+  }
+};
+
+export default { initializeSocket, getIO, emitToUser, emitToConversation, emitToAll, emitToRoom };
 

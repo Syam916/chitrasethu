@@ -39,7 +39,7 @@ export const followPhotographer = async (req, res) => {
 
     // Check if already following
     const existingFollow = await query(
-      'SELECT follow_id FROM user_follows WHERE follower_id = $1 AND following_id = $2',
+      'SELECT follow_id FROM follows WHERE follower_id = $1 AND following_id = $2',
       [followerId, followingId]
     );
 
@@ -52,7 +52,7 @@ export const followPhotographer = async (req, res) => {
 
     // Create follow relationship
     await query(
-      'INSERT INTO user_follows (follower_id, following_id) VALUES ($1, $2)',
+      'INSERT INTO follows (follower_id, following_id) VALUES ($1, $2)',
       [followerId, followingId]
     );
 
@@ -95,7 +95,7 @@ export const unfollowPhotographer = async (req, res) => {
 
     // Check if following
     const existingFollow = await query(
-      'SELECT follow_id FROM user_follows WHERE follower_id = $1 AND following_id = $2',
+      'SELECT follow_id FROM follows WHERE follower_id = $1 AND following_id = $2',
       [followerId, followingId]
     );
 
@@ -108,7 +108,7 @@ export const unfollowPhotographer = async (req, res) => {
 
     // Remove follow relationship
     await query(
-      'DELETE FROM user_follows WHERE follower_id = $1 AND following_id = $2',
+      'DELETE FROM follows WHERE follower_id = $1 AND following_id = $2',
       [followerId, followingId]
     );
 
@@ -160,7 +160,7 @@ export const getFollowStatus = async (req, res) => {
 
     // Check if following
     const followResult = await query(
-      'SELECT follow_id FROM user_follows WHERE follower_id = $1 AND following_id = $2',
+      'SELECT follow_id FROM follows WHERE follower_id = $1 AND following_id = $2',
       [followerId, followingId]
     );
 
@@ -203,24 +203,24 @@ export const getFollowers = async (req, res) => {
     // Get followers with user info
     const followers = await query(
       `SELECT 
-         uf.follow_id,
-         uf.created_at as followed_at,
+         f.follow_id,
+         f.created_at as followed_at,
          u.user_id,
          up.full_name,
          up.avatar_url,
          u.user_type
-       FROM user_follows uf
-       JOIN users u ON uf.follower_id = u.user_id
+       FROM follows f
+       JOIN users u ON f.follower_id = u.user_id
        JOIN user_profiles up ON u.user_id = up.user_id
-       WHERE uf.following_id = $1 AND u.is_active = true
-       ORDER BY uf.created_at DESC
+       WHERE f.following_id = $1 AND u.is_active = true
+       ORDER BY f.created_at DESC
        LIMIT $2 OFFSET $3`,
       [followingId, parseInt(limit), parseInt(offset)]
     );
 
     // Get total count
     const countResult = await query(
-      'SELECT COUNT(*) as total FROM user_follows WHERE following_id = $1',
+      'SELECT COUNT(*) as total FROM follows WHERE following_id = $1',
       [followingId]
     );
     const total = parseInt(countResult[0].total);
@@ -258,26 +258,26 @@ export const getMyFollowing = async (req, res) => {
     // Get following list with user info
     const following = await query(
       `SELECT 
-         uf.follow_id,
-         uf.created_at as followed_at,
+         f.follow_id,
+         f.created_at as followed_at,
          u.user_id,
          up.full_name,
          up.avatar_url,
          u.user_type,
          ph.photographer_id
-       FROM user_follows uf
-       JOIN users u ON uf.following_id = u.user_id
+       FROM follows f
+       JOIN users u ON f.following_id = u.user_id
        JOIN user_profiles up ON u.user_id = up.user_id
        LEFT JOIN photographers ph ON u.user_id = ph.user_id
-       WHERE uf.follower_id = $1 AND u.is_active = true
-       ORDER BY uf.created_at DESC
+       WHERE f.follower_id = $1 AND u.is_active = true
+       ORDER BY f.created_at DESC
        LIMIT $2 OFFSET $3`,
       [followerId, parseInt(limit), parseInt(offset)]
     );
 
     // Get total count
     const countResult = await query(
-      'SELECT COUNT(*) as total FROM user_follows WHERE follower_id = $1',
+      'SELECT COUNT(*) as total FROM follows WHERE follower_id = $1',
       [followerId]
     );
     const total = parseInt(countResult[0].total);
@@ -331,26 +331,26 @@ export const getFollowing = async (req, res) => {
     // Get following list with user info
     const following = await query(
       `SELECT 
-         uf.follow_id,
-         uf.created_at as followed_at,
+         f.follow_id,
+         f.created_at as followed_at,
          u.user_id,
          up.full_name,
          up.avatar_url,
          u.user_type,
          ph.photographer_id
-       FROM user_follows uf
-       JOIN users u ON uf.following_id = u.user_id
+       FROM follows f
+       JOIN users u ON f.following_id = u.user_id
        JOIN user_profiles up ON u.user_id = up.user_id
        LEFT JOIN photographers ph ON u.user_id = ph.user_id
-       WHERE uf.follower_id = $1 AND u.is_active = true
-       ORDER BY uf.created_at DESC
+       WHERE f.follower_id = $1 AND u.is_active = true
+       ORDER BY f.created_at DESC
        LIMIT $2 OFFSET $3`,
       [followerId, parseInt(limit), parseInt(offset)]
     );
 
     // Get total count
     const countResult = await query(
-      'SELECT COUNT(*) as total FROM user_follows WHERE follower_id = $1',
+      'SELECT COUNT(*) as total FROM follows WHERE follower_id = $1',
       [followerId]
     );
     const total = parseInt(countResult[0].total);

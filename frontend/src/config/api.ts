@@ -57,6 +57,42 @@ export const API_ENDPOINTS = {
     SEND: `${API_BASE_URL}/messages/send`,
     MARK_READ: (id: string) => `${API_BASE_URL}/messages/conversations/${id}/read`,
   },
+  // Discussions
+  DISCUSSIONS: {
+    LIST: `${API_BASE_URL}/discussions`,
+    CATEGORIES: `${API_BASE_URL}/discussions/categories`,
+    DETAIL: (id: number) => `${API_BASE_URL}/discussions/${id}`,
+    CREATE: `${API_BASE_URL}/discussions`,
+    UPDATE: (id: number) => `${API_BASE_URL}/discussions/${id}`,
+    DELETE: (id: number) => `${API_BASE_URL}/discussions/${id}`,
+    ADD_REPLY: (id: number) => `${API_BASE_URL}/discussions/${id}/replies`,
+    UPDATE_REPLY: (id: number) => `${API_BASE_URL}/discussions/replies/${id}`,
+    DELETE_REPLY: (id: number) => `${API_BASE_URL}/discussions/replies/${id}`,
+  },
+  // Groups
+  GROUPS: {
+    LIST: `${API_BASE_URL}/groups`,
+    MY: `${API_BASE_URL}/groups/my`,
+    DETAIL: (id: number) => `${API_BASE_URL}/groups/${id}`,
+    CREATE: `${API_BASE_URL}/groups`,
+    UPDATE: (id: number) => `${API_BASE_URL}/groups/${id}`,
+    DELETE: (id: number) => `${API_BASE_URL}/groups/${id}`,
+    JOIN: (id: number) => `${API_BASE_URL}/groups/${id}/join`,
+    LEAVE: (id: number) => `${API_BASE_URL}/groups/${id}/leave`,
+    UPDATE_MEMBER_ROLE: (groupId: number, memberId: number) => `${API_BASE_URL}/groups/${groupId}/members/${memberId}/role`,
+    REMOVE_MEMBER: (groupId: number, memberId: number) => `${API_BASE_URL}/groups/${groupId}/members/${memberId}`,
+  },
+  // Collaborations
+  COLLABORATIONS: {
+    LIST: `${API_BASE_URL}/collaborations`,
+    DETAIL: (id: number) => `${API_BASE_URL}/collaborations/${id}`,
+    CREATE: `${API_BASE_URL}/collaborations`,
+    UPDATE: (id: number) => `${API_BASE_URL}/collaborations/${id}`,
+    DELETE: (id: number) => `${API_BASE_URL}/collaborations/${id}`,
+    RESPOND: (id: number) => `${API_BASE_URL}/collaborations/${id}/respond`,
+    UPDATE_RESPONSE_STATUS: (collabId: number, responseId: number) => `${API_BASE_URL}/collaborations/${collabId}/responses/${responseId}/status`,
+    WITHDRAW: (id: number) => `${API_BASE_URL}/collaborations/${id}/withdraw`,
+  },
 };
 
 // Helper function to get auth header

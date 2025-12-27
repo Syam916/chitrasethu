@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, X, Eye, Upload, Plus, Trash2, Camera, Award, DollarSign, Globe, Calendar, Heart, MessageCircle, Share2 } from 'lucide-react';
+import { Save, X, Eye, Upload, Plus, Trash2, Camera, Award, DollarSign, Globe, Calendar, Heart, MessageCircle, Share2, Users, UserPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -17,6 +17,8 @@ import authService from '@/services/auth.service';
 import uploadService from '@/services/upload.service';
 import photographerService, { PhotographerDetail } from '@/services/photographer.service';
 import postService from '@/services/post.service';
+import followService from '@/services/follow.service';
+import FollowersFollowingModal from '../ui/FollowersFollowingModal';
 import { useToast } from '@/hooks/use-toast';
 
 const PhotographerProfileEditPage = () => {
@@ -66,6 +68,8 @@ const PhotographerProfileEditPage = () => {
   const [portfolio, setPortfolio] = useState<PhotographerDetail['portfolio']>([]);
   const [selectedPortfolioItem, setSelectedPortfolioItem] = useState<PhotographerDetail['portfolio'][0] | null>(null);
   const [portfolioModalOpen, setPortfolioModalOpen] = useState(false);
+  const [followersModalOpen, setFollowersModalOpen] = useState(false);
+  const [followingModalOpen, setFollowingModalOpen] = useState(false);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -420,6 +424,56 @@ const PhotographerProfileEditPage = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Followers & Following Section */}
+                {photographerData?.photographerId && (
+                  <div>
+                    <Label>Followers & Following</Label>
+                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Followers Card */}
+                      <div
+                        className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => setFollowersModalOpen(true)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <Users className="w-5 h-5 text-primary" />
+                            <div>
+                              <p className="text-2xl font-bold text-primary">
+                                {photographerData?.followerCount ?? 0}
+                              </p>
+                              <p className="text-sm text-muted-foreground">Followers</p>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            View Details
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Following Card */}
+                      <div
+                        className="border border-border rounded-lg p-4 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onClick={() => setFollowingModalOpen(true)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <UserPlus className="w-5 h-5 text-primary" />
+                            <div>
+                              <p className="text-2xl font-bold text-primary">
+                                {photographerData?.followingCount ?? 0}
+                              </p>
+                              <p className="text-sm text-muted-foreground">Following</p>
+                            </div>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            View Details
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <Label htmlFor="coverPhoto">Cover Photo</Label>
@@ -1228,6 +1282,26 @@ const PhotographerProfileEditPage = () => {
           </Button>
         </div>
       </div>
+
+      {/* Followers/Following Modals */}
+      {photographerData?.photographerId && (
+        <>
+          <FollowersFollowingModal
+            open={followersModalOpen}
+            onOpenChange={setFollowersModalOpen}
+            photographerId={photographerData.photographerId}
+            type="followers"
+            title="Followers"
+          />
+          <FollowersFollowingModal
+            open={followingModalOpen}
+            onOpenChange={setFollowingModalOpen}
+            photographerId={photographerData.photographerId}
+            type="following"
+            title="Following"
+          />
+        </>
+      )}
     </div>
   );
 };

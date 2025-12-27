@@ -17,6 +17,9 @@ import photographerRoutes from './routes/photographer.routes.js';
 import postRoutes from './routes/post.routes.js';
 import messageRoutes from './routes/photographer/messages/messages.js';
 import uploadRoutes from './routes/upload.routes.js';
+import discussionRoutes from './routes/discussion.routes.js';
+import groupRoutes from './routes/group.routes.js';
+import collaborationRoutes from './routes/collaboration.routes.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -83,7 +86,10 @@ app.get('/api', (req, res) => {
       posts: '/api/posts',
       collections: '/api/collections',
       messages: '/api/messages',
-      notifications: '/api/notifications'
+      notifications: '/api/notifications',
+      discussions: '/api/discussions',
+      groups: '/api/groups',
+      collaborations: '/api/collaborations'
     }
   });
 });
@@ -94,6 +100,9 @@ app.use('/api/photographers', photographerRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/discussions', discussionRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/collaborations', collaborationRoutes);
 
 // ============================================================================
 // ERROR HANDLING

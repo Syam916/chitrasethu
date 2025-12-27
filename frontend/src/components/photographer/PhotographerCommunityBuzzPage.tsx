@@ -1,15 +1,126 @@
-import React from 'react';
-import { Users, Plus, MessageCircle, Shield, Calendar, MapPin, Sparkles, Share2, Link, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, Plus, MessageCircle, Shield, Calendar, MapPin, Sparkles, Share2, Link, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { Alert, AlertDescription } from '../ui/alert';
 import PhotographerNavbar from './PhotographerNavbar';
-import { photographerCommunityGroups, photographerCollaborations } from '@/data/photographerDummyData';
 import { upcomingEvents } from '@/data/dummyData';
+import groupService, { CommunityGroup } from '@/services/group.service';
+import collaborationService, { Collaboration } from '@/services/collaboration.service';
+import { formatDistanceToNow } from 'date-fns';
+import { CreateGroupDialog } from '../groups/CreateGroupDialog';
+import { CreateCollaborationDialog } from '../collaborations/CreateCollaborationDialog';
+import { useCommunityBuzzSocket } from '@/hooks/useCommunityBuzzSocket';
 
 const PhotographerCommunityBuzzPage = () => {
+  const [activeTab, setActiveTab] = useState('groups');
+
+  // Groups state
+  const [groups, setGroups] = useState<CommunityGroup[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [groupsError, setGroupsError] = useState<string | null>(null);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+
+  // Collaborations state
+  const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
+  const [collaborationsLoading, setCollaborationsLoading] = useState(false);
+  const [collaborationsError, setCollaborationsError] = useState<string | null>(null);
+  const [createCollaborationOpen, setCreateCollaborationOpen] = useState(false);
+
+  // Load groups
+  useEffect(() => {
+    if (activeTab === 'groups') {
+      loadMyGroups();
+    }
+  }, [activeTab]);
+
+  // Load collaborations
+  useEffect(() => {
+    if (activeTab === 'collaborations') {
+      loadCollaborations();
+    }
+  }, [activeTab]);
+
+  // Real-time updates
+  useCommunityBuzzSocket({
+    onNewGroup: (group) => {
+      // Add new group to the list
+      if (activeTab === 'groups') {
+        loadMyGroups();
+      }
+    },
+    onNewCollaboration: (collaboration) => {
+      // Add new collaboration to the list
+      if (activeTab === 'collaborations') {
+        loadCollaborations();
+      }
+    },
+    onCollaborationUpdated: (collaborationId) => {
+      // Refresh collaborations when updated
+      if (activeTab === 'collaborations') {
+        loadCollaborations();
+      }
+    }
+  });
+
+  const loadMyGroups = async () => {
+    try {
+      setGroupsLoading(true);
+      setGroupsError(null);
+      const result = await groupService.getMyGroups({ limit: 50, offset: 0 });
+      setGroups(result.groups);
+    } catch (error: any) {
+      console.error('Error loading groups:', error);
+      setGroupsError(error.message || 'Failed to load groups');
+    } finally {
+      setGroupsLoading(false);
+    }
+  };
+
+  const loadCollaborations = async () => {
+    try {
+      setCollaborationsLoading(true);
+      setCollaborationsError(null);
+      const result = await collaborationService.getAllCollaborations({ limit: 50, offset: 0 });
+      setCollaborations(result.collaborations);
+    } catch (error: any) {
+      console.error('Error loading collaborations:', error);
+      setCollaborationsError(error.message || 'Failed to load collaborations');
+    } finally {
+      setCollaborationsLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const handleJoinGroup = async (groupId: number) => {
+    try {
+      await groupService.joinGroup(groupId);
+      loadMyGroups(); // Reload groups
+    } catch (error: any) {
+      alert(error.message || 'Failed to join group');
+    }
+  };
+
+  const handleRespondToCollaboration = async (collaborationId: number) => {
+    try {
+      await collaborationService.respondToCollaboration(collaborationId);
+      alert('Response submitted successfully!');
+      loadCollaborations(); // Reload collaborations
+    } catch (error: any) {
+      alert(error.message || 'Failed to submit response');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       <PhotographerNavbar />
@@ -27,7 +138,10 @@ const PhotographerCommunityBuzzPage = () => {
             Connect with fellow photographers, collaborate on projects, and stay in sync with live event discussions.
           </p>
           <div className="flex justify-center gap-4 mt-8 flex-wrap">
-            <Button className="bg-gradient-to-r from-primary to-primary-glow">
+            <Button 
+              className="bg-gradient-to-r from-primary to-primary-glow" 
+              onClick={() => setCreateGroupOpen(true)}
+            >
               <Plus className="w-4 h-4 mr-2" />
               Start New Community
             </Button>
@@ -40,7 +154,7 @@ const PhotographerCommunityBuzzPage = () => {
       </div>
 
       <div className="container mx-auto px-4 py-10 space-y-8">
-        <Tabs defaultValue="groups" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
             <TabsTrigger value="groups">
               <Users className="w-4 h-4 mr-2" />
@@ -58,109 +172,172 @@ const PhotographerCommunityBuzzPage = () => {
 
           {/* Groups */}
           <TabsContent value="groups" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {photographerCommunityGroups.map((group) => (
-                <Card key={group.groupId} className="glass-effect hover:shadow-elegant transition-all duration-300">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start gap-3">
-                      <Avatar className="w-12 h-12 ring-2 ring-primary/20">
-                        <AvatarImage src={group.groupIcon} alt={group.groupName} />
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
-                          {group.groupName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <CardTitle className="text-lg">{group.groupName}</CardTitle>
-                          <Badge variant="outline" className="capitalize text-xs">
-                            {group.groupType}
-                          </Badge>
+            {groupsLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading groups...</span>
+              </div>
+            )}
+
+            {groupsError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{groupsError}</AlertDescription>
+              </Alert>
+            )}
+
+            {!groupsLoading && !groupsError && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {groups.length === 0 ? (
+                  <div className="col-span-full text-center py-12 text-muted-foreground">
+                    <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-semibold mb-2">No groups yet</p>
+                    <p>Join a group or create your own community to get started!</p>
+                  </div>
+                ) : (
+                  groups.map((group) => (
+                    <Card key={group.groupId} className="glass-effect hover:shadow-elegant transition-all duration-300">
+                      <CardHeader className="pb-4">
+                        <div className="flex items-start gap-3">
+                          <Avatar className="w-12 h-12 ring-2 ring-primary/20">
+                            <AvatarImage src={group.groupIconUrl} alt={group.groupName} />
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
+                              {group.groupName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <CardTitle className="text-lg">{group.groupName}</CardTitle>
+                              <Badge variant="outline" className="capitalize text-xs">
+                                {group.groupType}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">{group.description}</p>
+                          </div>
                         </div>
-                        <p className="text-xs text-muted-foreground">{group.description}</p>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{group.memberCount} members</span>
-                      <span>Last active {group.lastActivity}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
-                        {group.role}
-                      </Badge>
-                      <div className="flex items-center gap-2">
-                        {group.unreadCount > 0 && (
-                          <Badge variant="destructive">{group.unreadCount} new</Badge>
-                        )}
-                        <Button variant="ghost" size="sm" className="text-xs text-primary flex items-center gap-1">
-                          Open Chat <ChevronRight className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{group.memberCount} members</span>
+                          <span>Last active {formatTimeAgo(group.lastActivityAt)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                            {group.role || group.userRole}
+                          </Badge>
+                          <div className="flex items-center gap-2">
+                            {group.unreadCount && group.unreadCount > 0 && (
+                              <Badge variant="destructive">{group.unreadCount} new</Badge>
+                            )}
+                            <Button variant="ghost" size="sm" className="text-xs text-primary flex items-center gap-1">
+                              Open Chat <ChevronRight className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            )}
           </TabsContent>
 
           {/* Collaborations */}
           <TabsContent value="collaborations" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {photographerCollaborations.map((collab) => (
-                <Card key={collab.collaborationId} className="glass-effect hover:shadow-elegant transition-all duration-300">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start gap-3">
-                      <Avatar className="w-10 h-10 ring-2 ring-primary/20">
-                        <AvatarImage src={collab.posterAvatar} alt={collab.postedBy} />
-                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs">
-                          {collab.postedBy.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <CardTitle className="text-lg">{collab.title}</CardTitle>
-                        <p className="text-xs text-muted-foreground">{collab.postedBy}</p>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <Badge variant={collab.collaborationType === 'seeking' ? 'secondary' : 'default'} className="capitalize">
-                        {collab.collaborationType}
-                      </Badge>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {collab.location}
-                      </span>
-                      <span>{collab.date}</span>
-                      <span className="font-medium text-primary">{collab.budget}</span>
-                    </div>
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {collab.description}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {collab.skills.map((skill, index) => (
-                        <Badge key={index} variant="outline" className="text-xs">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <span>{collab.responses} responses</span>
-                      <span>Posted {new Date(collab.postedAt).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" className="flex-1">
-                        Respond
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex-1">
-                        Save
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="flex justify-end mb-4">
+              <Button onClick={() => setCreateCollaborationOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Post Collaboration
+              </Button>
             </div>
+
+            {collaborationsLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading collaborations...</span>
+              </div>
+            )}
+
+            {collaborationsError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{collaborationsError}</AlertDescription>
+              </Alert>
+            )}
+
+            {!collaborationsLoading && !collaborationsError && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {collaborations.length === 0 ? (
+                  <div className="col-span-full text-center py-12 text-muted-foreground">
+                    <Share2 className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-semibold mb-2">No collaborations yet</p>
+                    <p>Browse available collaborations or post your own!</p>
+                  </div>
+                ) : (
+                  collaborations.map((collab) => (
+                    <Card key={collab.collaborationId} className="glass-effect hover:shadow-elegant transition-all duration-300">
+                      <CardHeader className="pb-4">
+                        <div className="flex items-start gap-3">
+                          <Avatar className="w-10 h-10 ring-2 ring-primary/20">
+                            <AvatarImage src={collab.posterAvatar} alt={collab.posterName} />
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs">
+                              {collab.posterName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <CardTitle className="text-lg">{collab.title}</CardTitle>
+                            <p className="text-xs text-muted-foreground">{collab.posterName}</p>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          <Badge variant={collab.collaborationType === 'seeking' ? 'secondary' : 'default'} className="capitalize">
+                            {collab.collaborationType}
+                          </Badge>
+                          {collab.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {collab.location}
+                            </span>
+                          )}
+                          {collab.date && <span>{collab.date}</span>}
+                          {collab.budget && <span className="font-medium text-primary">{collab.budget}</span>}
+                        </div>
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          {collab.description}
+                        </p>
+                        {collab.skills && collab.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {collab.skills.map((skill, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{collab.responsesCount} responses</span>
+                          <span>Posted {formatTimeAgo(collab.createdAt)}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => handleRespondToCollaboration(collab.collaborationId)}
+                          >
+                            Respond
+                          </Button>
+                          <Button size="sm" variant="outline" className="flex-1">
+                            Save
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            )}
           </TabsContent>
 
           {/* Events */}
@@ -256,9 +433,26 @@ const PhotographerCommunityBuzzPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Create Group Dialog */}
+      <CreateGroupDialog
+        open={createGroupOpen}
+        onOpenChange={setCreateGroupOpen}
+        onGroupCreated={() => {
+          loadMyGroups();
+        }}
+      />
+
+      {/* Create Collaboration Dialog */}
+      <CreateCollaborationDialog
+        open={createCollaborationOpen}
+        onOpenChange={setCreateCollaborationOpen}
+        onCollaborationCreated={() => {
+          loadCollaborations();
+        }}
+      />
     </div>
   );
 };
 
 export default PhotographerCommunityBuzzPage;
-

@@ -1,15 +1,98 @@
-import React, { useState } from 'react';
-import { TrendingUp, Users, MessageCircle, Heart, Share2, Award, Camera, Calendar, MapPin } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { TrendingUp, Users, MessageCircle, Heart, Share2, Award, Camera, Calendar, MapPin, Loader2, AlertCircle, Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Alert, AlertDescription } from '../components/ui/alert';
 import NavbarIntegrated from '../components/home/NavbarIntegrated';
 import { socialPosts, photographers, upcomingEvents, trendingEvents } from '../data/dummyData';
+import postService from '../services/post.service';
+import discussionService, { DiscussionTopic } from '../services/discussion.service';
+import { formatDistanceToNow } from 'date-fns';
+import { CreateDiscussionDialog } from '../components/discussions/CreateDiscussionDialog';
+import authService from '../services/auth.service';
+import { useCommunityBuzzSocket } from '../hooks/useCommunityBuzzSocket';
 
 const CommunityBuzz = () => {
+  const navigate = useNavigate();
   const [likedPosts, setLikedPosts] = useState<number[]>([]);
+  const [activeTab, setActiveTab] = useState('feed');
+  
+  // Discussion state
+  const [discussionTopics, setDiscussionTopics] = useState<DiscussionTopic[]>([]);
+  const [discussionCategories, setDiscussionCategories] = useState<Array<{ name: string; topicCount: number }>>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [discussionLoading, setDiscussionLoading] = useState(false);
+  const [discussionError, setDiscussionError] = useState<string | null>(null);
+  const [createDiscussionOpen, setCreateDiscussionOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Check authentication
+  useEffect(() => {
+    setIsAuthenticated(authService.isAuthenticated());
+  }, []);
+
+  // Real-time updates
+  useCommunityBuzzSocket({
+    onNewDiscussion: (topic) => {
+      // Add new discussion to the list if it matches current filter
+      if (!selectedCategory || topic.category === selectedCategory) {
+        setDiscussionTopics(prev => [topic, ...prev]);
+      }
+      loadDiscussionCategories(); // Refresh category counts
+    },
+    onNewReply: (reply) => {
+      // Refresh discussions to update reply counts
+      if (activeTab === 'discussions') {
+        loadDiscussionTopics();
+      }
+    },
+    onDiscussionUpdated: (topicId) => {
+      // Refresh discussions when any discussion is updated
+      if (activeTab === 'discussions') {
+        loadDiscussionTopics();
+      }
+    }
+  });
+
+  // Load discussion topics
+  useEffect(() => {
+    if (activeTab === 'discussions') {
+      loadDiscussionTopics();
+      loadDiscussionCategories();
+    }
+  }, [activeTab, selectedCategory]);
+
+  const loadDiscussionTopics = async () => {
+    try {
+      setDiscussionLoading(true);
+      setDiscussionError(null);
+      const result = await discussionService.getAllTopics({
+        limit: 50,
+        offset: 0,
+        category: selectedCategory || undefined,
+        sort: 'activity'
+      });
+      setDiscussionTopics(result.topics);
+    } catch (error: any) {
+      console.error('Error loading discussions:', error);
+      setDiscussionError(error.message || 'Failed to load discussions');
+    } finally {
+      setDiscussionLoading(false);
+    }
+  };
+
+  const loadDiscussionCategories = async () => {
+    try {
+      const categories = await discussionService.getCategories();
+      setDiscussionCategories(categories);
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  };
 
   const toggleLike = (postId: number) => {
     setLikedPosts(prev => 
@@ -19,7 +102,7 @@ const CommunityBuzz = () => {
     );
   };
 
-  // Community highlights
+  // Community highlights (can be enhanced later with real data)
   const communityHighlights = [
     {
       id: 1,
@@ -47,45 +130,13 @@ const CommunityBuzz = () => {
     }
   ];
 
-  // Discussion topics
-  const discussionTopics = [
-    {
-      id: 1,
-      title: 'Best lens for wedding photography?',
-      author: 'Sarah Photography',
-      replies: 23,
-      lastActive: '2 hours ago',
-      category: 'Equipment',
-      isHot: true
-    },
-    {
-      id: 2,
-      title: 'How to price portrait sessions in 2024',
-      author: 'Pro Portraits',
-      replies: 45,
-      lastActive: '4 hours ago',
-      category: 'Business',
-      isHot: true
-    },
-    {
-      id: 3,
-      title: 'Color grading techniques for fashion shoots',
-      author: 'Fashion Focus',
-      replies: 18,
-      lastActive: '1 day ago',
-      category: 'Post-Processing',
-      isHot: false
-    },
-    {
-      id: 4,
-      title: 'Managing client expectations',
-      author: 'Wedding Wiz',
-      replies: 67,
-      lastActive: '2 days ago',
-      category: 'Client Relations',
-      isHot: false
+  const formatTimeAgo = (dateString: string) => {
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch {
+      return dateString;
     }
-  ];
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
@@ -111,7 +162,7 @@ const CommunityBuzz = () => {
               <div className="text-sm text-muted-foreground">Daily Posts</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-primary">50+</div>
+              <div className="text-2xl font-bold text-primary">{discussionTopics.length}+</div>
               <div className="text-sm text-muted-foreground">Active Discussions</div>
             </div>
           </div>
@@ -119,7 +170,7 @@ const CommunityBuzz = () => {
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="feed" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="feed">Community Feed</TabsTrigger>
             <TabsTrigger value="discussions">Discussions</TabsTrigger>
@@ -310,38 +361,84 @@ const CommunityBuzz = () => {
               <div className="lg:col-span-2">
                 <Card className="glass-effect">
                   <CardHeader>
-                    <CardTitle>Active Discussions</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle>Active Discussions</CardTitle>
+                      {isAuthenticated && (
+                        <Button
+                          onClick={() => setCreateDiscussionOpen(true)}
+                          size="sm"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          New Discussion
+                        </Button>
+                      )}
+                    </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-4">
-                      {discussionTopics.map((topic) => (
-                        <div key={topic.id} className="p-4 border border-border/50 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer">
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-2 mb-1">
-                                <h3 className="font-semibold">{topic.title}</h3>
-                                {topic.isHot && (
-                                  <Badge variant="destructive" className="text-xs">Hot</Badge>
-                                )}
+                    {discussionLoading && (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                        <span className="ml-2 text-muted-foreground">Loading discussions...</span>
+                      </div>
+                    )}
+
+                    {discussionError && (
+                      <Alert variant="destructive" className="mb-4">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>{discussionError}</AlertDescription>
+                      </Alert>
+                    )}
+
+                    {!discussionLoading && !discussionError && (
+                      <div className="space-y-4">
+                        {discussionTopics.length === 0 ? (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                            <p>No discussions found. Be the first to start one!</p>
+                          </div>
+                        ) : (
+                          discussionTopics.map((topic) => (
+                            <div 
+                              key={topic.topicId} 
+                              className="p-4 border border-border/50 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
+                              onClick={() => {
+                                navigate(`/discussions/${topic.topicId}`);
+                              }}
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <div className="flex items-center space-x-2 mb-1">
+                                    <h3 className="font-semibold">{topic.title}</h3>
+                                    {topic.isHot && (
+                                      <Badge variant="destructive" className="text-xs">Hot</Badge>
+                                    )}
+                                    {topic.isPinned && (
+                                      <Badge variant="secondary" className="text-xs">Pinned</Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground">Started by {topic.authorName}</p>
+                                </div>
+                                <Badge variant="outline" className="text-xs">
+                                  {topic.category}
+                                </Badge>
                               </div>
-                              <p className="text-sm text-muted-foreground">Started by {topic.author}</p>
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <div className="flex items-center space-x-4">
+                                  <span>{topic.repliesCount} replies</span>
+                                  <span>Last active {formatTimeAgo(topic.lastActivityAt)}</span>
+                                </div>
+                                <Button variant="ghost" size="sm" onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/discussions/${topic.topicId}`);
+                                }}>
+                                  Join Discussion
+                                </Button>
+                              </div>
                             </div>
-                            <Badge variant="outline" className="text-xs">
-                              {topic.category}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <div className="flex items-center space-x-4">
-                              <span>{topic.replies} replies</span>
-                              <span>Last active {topic.lastActive}</span>
-                            </div>
-                            <Button variant="ghost" size="sm">
-                              Join Discussion
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                          ))
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -353,11 +450,33 @@ const CommunityBuzz = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-2">
-                      {['Equipment', 'Business', 'Post-Processing', 'Client Relations', 'Techniques', 'Inspiration'].map((category) => (
-                        <Button key={category} variant="ghost" className="w-full justify-start">
-                          {category}
+                      <Button 
+                        variant={selectedCategory === '' ? "default" : "ghost"} 
+                        className="w-full justify-start"
+                        onClick={() => setSelectedCategory('')}
+                      >
+                        All ({discussionTopics.length})
+                      </Button>
+                      {discussionCategories.map((category) => (
+                        <Button 
+                          key={category.name} 
+                          variant={selectedCategory === category.name ? "default" : "ghost"} 
+                          className="w-full justify-start"
+                          onClick={() => setSelectedCategory(category.name)}
+                        >
+                          {category.name} ({category.topicCount})
                         </Button>
                       ))}
+                      {discussionCategories.length === 0 && (
+                        <div className="text-sm text-muted-foreground">
+                          Equipment<br />
+                          Business<br />
+                          Post-Processing<br />
+                          Client Relations<br />
+                          Techniques<br />
+                          Inspiration
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -445,6 +564,16 @@ const CommunityBuzz = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Create Discussion Dialog */}
+      <CreateDiscussionDialog
+        open={createDiscussionOpen}
+        onOpenChange={setCreateDiscussionOpen}
+        onDiscussionCreated={() => {
+          loadDiscussionTopics();
+          loadDiscussionCategories();
+        }}
+      />
     </div>
   );
 };

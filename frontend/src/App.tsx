@@ -10,6 +10,7 @@ import EventPhotos from "./pages/EventPhotos";
 import MoodBoard from "./pages/MoodBoard";
 import Requests from "./pages/Requests";
 import CommunityBuzz from "./pages/CommunityBuzz";
+import DiscussionDetail from "./pages/DiscussionDetail";
 import Register from "./pages/Register";
 import NotFound from "./pages/NotFound";
 import LoginPageIntegrated from "./components/LoginPageIntegrated";
@@ -58,6 +59,7 @@ const App = () => (
           <Route path="/mood-board" element={<MoodBoard />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/community-buzz" element={<CommunityBuzz />} />
+          <Route path="/discussions/:topicId" element={<DiscussionDetail />} />
           
           {/* Customer Routes */}
           <Route path="/customer/messages" element={<CustomerMessages />} />

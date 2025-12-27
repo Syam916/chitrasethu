@@ -12,6 +12,7 @@ import { Badge } from './badge';
 import { Loader2, Users, UserPlus } from 'lucide-react';
 import followService, { FollowUser } from '@/services/follow.service';
 import authService from '@/services/auth.service';
+import { useToast } from '@/hooks/use-toast';
 
 interface FollowersFollowingModalProps {
   open: boolean;
@@ -29,6 +30,7 @@ const FollowersFollowingModal: React.FC<FollowersFollowingModalProps> = ({
   title,
 }) => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [users, setUsers] = useState<FollowUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -69,9 +71,22 @@ const FollowersFollowingModal: React.FC<FollowersFollowingModalProps> = ({
     onOpenChange(false);
     // Navigate to profile based on user type
     if (user.userType === 'photographer') {
-      // Use photographerId if available, otherwise use userId (backend will handle it)
-      const profileId = user.photographerId || user.userId;
-      navigate(`/photographer/profile/${profileId}`);
+      // Always prefer photographerId when available - it's the correct identifier for the route
+      // Backend accepts both photographer_id and user_id, but photographer_id is the proper one
+      if (user.photographerId !== undefined && user.photographerId !== null) {
+        navigate(`/photographer/profile/${user.photographerId}`);
+      } else if (user.userId) {
+        // Fallback to userId only if photographerId is not provided
+        // Backend will resolve photographer_id from user_id
+        navigate(`/photographer/profile/${user.userId}`);
+      } else {
+        console.error('No photographerId or userId available for navigation', user);
+        toast({
+          title: 'Error',
+          description: 'Unable to navigate to profile',
+          variant: 'destructive',
+        });
+      }
     } else {
       // For customers, we don't have a public profile page yet
       // For now, just show a message or do nothing

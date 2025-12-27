@@ -16,3 +16,6 @@ CREATE INDEX IF NOT EXISTS idx_portfolios_post_id ON photographer_portfolios(pos
 PRINT 'Post ID column added to photographer_portfolios successfully!';
 
 
+
+
+

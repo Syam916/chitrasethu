@@ -341,15 +341,18 @@ const ProfileSettings = () => {
                       </div>
                     )}
                     {user.userType === 'customer' && (
-                      <button
-                        onClick={() => setFollowingModalOpen(true)}
-                        className="flex items-center space-x-3 w-full text-left hover:opacity-80 transition-opacity cursor-pointer"
-                      >
-                        <UserPlus className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-muted-foreground">
-                          <span className="font-semibold">{followingCount}</span> following
-                        </span>
-                      </button>
+                      <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer" onClick={() => setFollowingModalOpen(true)}>
+                        <div className="flex items-center space-x-3">
+                          <UserPlus className="w-4 h-4 text-primary" />
+                          <div>
+                            <p className="text-sm font-semibold">{followingCount}</p>
+                            <p className="text-xs text-muted-foreground">Following</p>
+                          </div>
+                        </div>
+                        <Button variant="ghost" size="sm" className="h-8">
+                          View All
+                        </Button>
+                      </div>
                     )}
                   </div>
                 </CardContent>
