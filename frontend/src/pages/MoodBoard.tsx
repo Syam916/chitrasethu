@@ -1,48 +1,100 @@
-import React, { useState } from 'react';
-import { Heart, Download, Share2, Plus, Grid, Bookmark, Search, Filter } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Heart, Download, Share2, Plus, Grid, Bookmark, Search, Filter, Loader2, AlertCircle, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import NavbarIntegrated from '../components/home/NavbarIntegrated';
-import { collections, socialPosts } from '../data/dummyData';
+import { useNavigate } from 'react-router-dom';
+import moodBoardService, { MoodBoard } from '@/services/moodboard.service';
+import authService from '@/services/auth.service';
 
 const MoodBoard = () => {
+  const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [savedItems, setSavedItems] = useState<number[]>([]);
+  const [boards, setBoards] = useState<MoodBoard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const categories = [
-    { id: 'all', name: 'All Categories', count: 120 },
-    { id: 'wedding', name: 'Wedding', count: 45 },
-    { id: 'fashion', name: 'Fashion', count: 32 },
-    { id: 'portrait', name: 'Portrait', count: 28 },
-    { id: 'event', name: 'Events', count: 25 },
-    { id: 'nature', name: 'Nature', count: 18 },
-    { id: 'architecture', name: 'Architecture', count: 15 }
-  ];
+  const isPhotographer = authService.getStoredUser()?.userType === 'photographer';
 
-  // Create a mood board data from existing images
-  const moodBoardItems = [
-    ...socialPosts.map(post => ({
-      id: post.id,
-      type: 'post' as const,
-      image: post.content.media[0],
-      title: post.content.caption.split(' ').slice(0, 5).join(' ') + '...',
-      author: post.user.name,
-      likes: post.engagement.likes,
-      category: post.tags[0]?.toLowerCase() || 'general'
-    })),
-    ...collections.map(collection => ({
-      id: collection.id + 100,
-      type: 'collection' as const,
-      image: collection.thumbnail,
-      title: collection.title,
-      author: collection.curator,
-      likes: Math.floor(Math.random() * 500) + 100,
-      category: collection.category.toLowerCase()
-    }))
-  ];
+  useEffect(() => {
+    fetchPublicBoards();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPublicBoards();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedCategory]);
+
+  const fetchPublicBoards = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      // If user is authenticated, fetch all accessible boards (public + owned + collaborator)
+      // If not authenticated, only fetch public boards
+      const isAuthenticated = authService.isAuthenticated();
+      const fetchedBoards = await moodBoardService.getAll({
+        privacy: isAuthenticated ? 'all' : 'public', // Authenticated users see all accessible boards
+        category: selectedCategory !== 'all' ? selectedCategory : undefined,
+        search: searchQuery || undefined,
+      });
+      setBoards(fetchedBoards);
+    } catch (err: any) {
+      console.error('Error fetching mood boards:', err);
+      setError(err.message || 'Failed to load mood boards');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Get categories from actual boards
+  const categories = useMemo(() => {
+    const categoryCounts = new Map<string, number>();
+    boards.forEach(board => {
+      if (board.category) {
+        categoryCounts.set(board.category, (categoryCounts.get(board.category) || 0) + 1);
+      }
+    });
+
+    const categoryList = Array.from(categoryCounts.entries()).map(([name, count]) => ({
+      id: name.toLowerCase(),
+      name,
+      count
+    }));
+
+    return [
+      { id: 'all', name: 'All Categories', count: boards.length },
+      ...categoryList.sort((a, b) => b.count - a.count)
+    ];
+  }, [boards]);
+
+  // Convert boards to display format
+  // For customers: show only public boards in main gallery (collaborator boards shown in sidebar)
+  // For photographers: show all boards
+  const moodBoardItems = useMemo(() => {
+    const boardsToShow = isPhotographer 
+      ? boards 
+      : boards.filter(b => b.privacy === 'public' || b.isCollaborator);
+    
+    return boardsToShow.map(board => ({
+      id: board.boardId,
+      type: 'board' as const,
+      image: board.coverImage || (board.images && board.images.length > 0 ? board.images[0] : ''),
+      title: board.boardName,
+      author: board.creator?.fullName || 'Photographer',
+      likes: board.likes,
+      category: board.category?.toLowerCase() || 'general',
+      boardId: board.boardId,
+      imageCount: board.imageCount,
+      views: board.views,
+      isCollaborator: board.isCollaborator
+    }));
+  }, [boards, isPhotographer]);
 
   const filteredItems = moodBoardItems.filter(item => {
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -90,10 +142,16 @@ const MoodBoard = () => {
             </Button>
           </div>
           
-          <Button size="lg" className="bg-gradient-to-r from-primary to-primary-glow">
-            <Plus className="w-5 h-5 mr-2" />
-            Create New Board
-          </Button>
+          {isPhotographer && (
+            <Button 
+              size="lg" 
+              className="bg-gradient-to-r from-primary to-primary-glow"
+              onClick={() => navigate('/photographer/mood-boards/create')}
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Create New Board
+            </Button>
+          )}
         </div>
       </div>
 
@@ -125,31 +183,57 @@ const MoodBoard = () => {
               </CardContent>
             </Card>
 
-            {/* My Boards */}
-            <Card className="glass-effect mb-6">
-              <CardHeader>
-                <CardTitle className="text-lg">My Boards</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {['Wedding Inspiration', 'Fashion Shoots', 'Portrait Ideas', 'Color Palettes'].map((board, index) => (
-                    <div key={index} className="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/30 cursor-pointer">
-                      <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-glow rounded-lg flex items-center justify-center">
-                        <Grid className="w-5 h-5 text-white" />
+            {/* My Boards - Only for Photographers */}
+            {isPhotographer && (
+              <Card className="glass-effect mb-6">
+                <CardHeader>
+                  <CardTitle className="text-lg">My Boards</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Manage your mood boards in the photographer dashboard.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    size="sm"
+                    onClick={() => navigate('/photographer/mood-boards')}
+                  >
+                    <Grid className="w-4 h-4 mr-2" />
+                    Go to My Boards
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Collaborator Boards - For Customers */}
+            {!isPhotographer && authService.isAuthenticated() && (
+              <Card className="glass-effect mb-6">
+                <CardHeader>
+                  <CardTitle className="text-lg">Shared With Me</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Boards that photographers have shared with you.
+                  </p>
+                  <div className="space-y-2">
+                    {boards.filter(b => b.isCollaborator).map(board => (
+                      <div
+                        key={board.boardId}
+                        className="p-2 border border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => navigate(`/photographer/mood-boards/${board.boardId}`)}
+                      >
+                        <p className="text-sm font-medium">{board.boardName}</p>
+                        <p className="text-xs text-muted-foreground">by {board.creator?.fullName}</p>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{board}</p>
-                        <p className="text-xs text-muted-foreground">{Math.floor(Math.random() * 20) + 5} items</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Button variant="outline" className="w-full mt-4" size="sm">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Board
-                </Button>
-              </CardContent>
-            </Card>
+                    ))}
+                    {boards.filter(b => b.isCollaborator).length === 0 && (
+                      <p className="text-xs text-muted-foreground">No boards shared with you yet</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Trending Tags */}
             <Card className="glass-effect">
@@ -176,90 +260,174 @@ const MoodBoard = () => {
                   Inspiration Gallery
                 </h2>
                 <p className="text-muted-foreground">
-                  {filteredItems.length} items • Discover and save inspiring photography
+                  {isLoading ? 'Loading...' : `${filteredItems.length} items • Discover and save inspiring photography`}
                 </p>
               </div>
               
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Upload Image
-              </Button>
+              {isPhotographer && (
+                <Button onClick={() => navigate('/photographer/mood-boards/create')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Upload Image
+                </Button>
+              )}
             </div>
+
+            {/* Loading State */}
+            {isLoading && (
+              <div className="text-center py-12">
+                <Loader2 className="w-12 h-12 text-primary mx-auto mb-4 animate-spin" />
+                <p className="text-muted-foreground">Loading mood boards...</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {error && !isLoading && (
+              <Card className="glass-effect">
+                <CardContent className="p-6 text-center">
+                  <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
+                  <p className="text-destructive mb-4">{error}</p>
+                  <Button onClick={fetchPublicBoards}>Try Again</Button>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Masonry Grid */}
-            <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
-              {filteredItems.map((item) => (
-                <div key={item.id} className="break-inside-avoid">
-                  <Card className="glass-effect hover:shadow-elegant transition-all duration-300 group overflow-hidden">
-                    <CardContent className="p-0">
-                      <div className="relative">
-                        <img 
-                          src={item.image} 
-                          alt={item.title}
-                          className="w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          style={{ aspectRatio: `${Math.random() * 0.5 + 0.75}` }}
-                        />
-                        
-                        {/* Overlay on Hover */}
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                          <div className="flex space-x-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => toggleSave(item.id)}
-                              className={savedItems.includes(item.id) ? 'bg-primary text-white' : ''}
-                            >
-                              <Bookmark className="w-4 h-4" />
-                            </Button>
-                            <Button variant="secondary" size="sm">
-                              <Download className="w-4 h-4" />
-                            </Button>
-                            <Button variant="secondary" size="sm">
-                              <Share2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        
-                        {/* Category Badge */}
-                        <Badge className="absolute top-2 left-2 bg-black/70 text-white">
-                          {item.category}
-                        </Badge>
-                      </div>
-                      
-                      {/* Content */}
-                      <div className="p-4">
-                        <h3 className="font-medium mb-2 line-clamp-2">{item.title}</h3>
-                        <p className="text-sm text-muted-foreground mb-3">by {item.author}</p>
-                        
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-1">
-                            <Heart className="w-4 h-4 text-red-500" />
-                            <span className="text-sm font-medium">{item.likes}</span>
+            {!isLoading && !error && (
+              <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
+                {filteredItems.map((item) => (
+                  <div key={item.id} className="break-inside-avoid">
+                    <Card className="glass-effect hover:shadow-elegant transition-all duration-300 group overflow-hidden cursor-pointer"
+                      onClick={() => item.boardId && navigate(`/photographer/mood-boards/${item.boardId}`)}
+                    >
+                      <CardContent className="p-0">
+                        <div className="relative">
+                          {item.image ? (
+                            <img 
+                              src={item.image} 
+                              alt={item.title}
+                              className="w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              style={{ aspectRatio: '4/3', minHeight: '200px' }}
+                            />
+                          ) : (
+                            <div className="w-full bg-muted flex items-center justify-center" style={{ aspectRatio: '4/3', minHeight: '200px' }}>
+                              <Grid className="w-12 h-12 text-muted-foreground" />
+                            </div>
+                          )}
+                          
+                          {/* Overlay on Hover */}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleSave(item.id);
+                                }}
+                                className={savedItems.includes(item.id) ? 'bg-primary text-white' : ''}
+                              >
+                                <Bookmark className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="secondary" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (item.boardId) {
+                                    navigate(`/photographer/mood-boards/${item.boardId}`);
+                                  }
+                                }}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button 
+                                variant="secondary" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (item.boardId) {
+                                    navigator.clipboard.writeText(`${window.location.origin}/photographer/mood-boards/${item.boardId}`);
+                                    alert('Board link copied!');
+                                  }
+                                }}
+                              >
+                                <Share2 className="w-4 h-4" />
+                              </Button>
+                            </div>
                           </div>
                           
-                          <Button
-                            variant={savedItems.includes(item.id) ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => toggleSave(item.id)}
-                          >
-                            <Bookmark className="w-4 h-4 mr-1" />
-                            {savedItems.includes(item.id) ? 'Saved' : 'Save'}
-                          </Button>
+                          {/* Category Badge */}
+                          <div className="absolute top-2 left-2 flex gap-2">
+                            {item.category && (
+                              <Badge className="bg-black/70 text-white capitalize">
+                                {item.category}
+                              </Badge>
+                            )}
+                            {item.isCollaborator && (
+                              <Badge variant="secondary" className="text-xs">
+                                Shared
+                              </Badge>
+                            )}
+                          </div>
+                          {item.imageCount !== undefined && (
+                            <Badge variant="secondary" className="absolute top-2 right-2">
+                              {item.imageCount} shots
+                            </Badge>
+                          )}
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
+                        
+                        {/* Content */}
+                        <div className="p-4">
+                          <h3 className="font-medium mb-2 line-clamp-2">{item.title}</h3>
+                          <p className="text-sm text-muted-foreground mb-3">by {item.author}</p>
+                          
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                              <div className="flex items-center space-x-1">
+                                <Heart className="w-3 h-3 text-red-500" />
+                                <span>{item.likes}</span>
+                              </div>
+                              {item.views !== undefined && (
+                                <div className="flex items-center space-x-1">
+                                  <Eye className="w-3 h-3" />
+                                  <span>{item.views}</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            <Button
+                              variant={savedItems.includes(item.id) ? "default" : "outline"}
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleSave(item.id);
+                              }}
+                            >
+                              <Bookmark className="w-4 h-4 mr-1" />
+                              {savedItems.includes(item.id) ? 'Saved' : 'Save'}
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            {filteredItems.length === 0 && (
+            {!isLoading && !error && filteredItems.length === 0 && (
               <div className="text-center py-12">
                 <Grid className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                <p className="text-lg text-muted-foreground mb-4">No mood board items found</p>
-                <Button onClick={() => {setSearchQuery(''); setSelectedCategory('all');}}>
-                  Clear Filters
-                </Button>
+                <p className="text-lg text-muted-foreground mb-4">
+                  {boards.length === 0 
+                    ? 'No public mood boards available yet. Check back soon!'
+                    : 'No mood board items match your search'}
+                </p>
+                {(searchQuery || selectedCategory !== 'all') && (
+                  <Button onClick={() => {setSearchQuery(''); setSelectedCategory('all');}}>
+                    Clear Filters
+                  </Button>
+                )}
               </div>
             )}
 
