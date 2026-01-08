@@ -15,13 +15,14 @@ export const getAllTopics = async (req, res) => {
     }
 
     let categoryFilter = '';
+    let params = [];
+    
     if (category) {
-      categoryFilter = 'AND dt.category = $4';
+      categoryFilter = 'AND dt.category = $3';
+      params = [parseInt(limit), parseInt(offset), category];
+    } else {
+      params = [parseInt(limit), parseInt(offset)];
     }
-
-    const params = category 
-      ? [parseInt(limit), parseInt(offset), userId, category]
-      : [parseInt(limit), parseInt(offset), userId];
 
     const topics = await query(
       `SELECT 

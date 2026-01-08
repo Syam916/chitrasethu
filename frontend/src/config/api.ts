@@ -81,6 +81,8 @@ export const API_ENDPOINTS = {
     LEAVE: (id: number) => `${API_BASE_URL}/groups/${id}/leave`,
     UPDATE_MEMBER_ROLE: (groupId: number, memberId: number) => `${API_BASE_URL}/groups/${groupId}/members/${memberId}/role`,
     REMOVE_MEMBER: (groupId: number, memberId: number) => `${API_BASE_URL}/groups/${groupId}/members/${memberId}`,
+    MESSAGES: (id: number) => `${API_BASE_URL}/groups/${id}/messages`,
+    SEND_MESSAGE: (id: number) => `${API_BASE_URL}/groups/${id}/messages`,
   },
   // Collaborations
   COLLABORATIONS: {

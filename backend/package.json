@@ -8,7 +8,9 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "db:setup": "node src/database/setup.js",
+    "db:migrate": "node src/database/migrate_new_tables.js",
     "db:seed": "node src/database/seed.js",
+    "db:seed:buzz": "node src/database/seed_community_buzz.js",
     "db:reset": "node src/database/reset.js",
     "verify": "node verify-setup.js"
   },

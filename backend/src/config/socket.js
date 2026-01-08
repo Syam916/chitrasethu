@@ -208,6 +208,52 @@ export const initializeSocket = (server) => {
       }
     });
 
+    // Handle sending a group message (real-time only, DB save happens in REST API)
+    socket.on('send_group_message', (data) => {
+      try {
+        const { groupId, message } = data;
+        const room = `group_${groupId}`;
+        
+        // Emit to all users in the group except sender
+        socket.to(room).emit('new_group_message', {
+          message,
+          groupId: parseInt(groupId)
+        });
+        
+        console.log(`📨 Group message sent in group ${groupId} by user ${socket.userId}`);
+      } catch (error) {
+        console.error('Send group message error:', error);
+        socket.emit('error', { message: 'Failed to send group message' });
+      }
+    });
+
+    // Handle typing indicator in group
+    socket.on('group_typing', ({ groupId, userName }) => {
+      try {
+        const room = `group_${groupId}`;
+        socket.to(room).emit('user_typing_group', {
+          groupId: parseInt(groupId),
+          userId: socket.userId,
+          userName
+        });
+      } catch (error) {
+        console.error('Group typing error:', error);
+      }
+    });
+
+    // Handle stop typing in group
+    socket.on('stop_group_typing', ({ groupId }) => {
+      try {
+        const room = `group_${groupId}`;
+        socket.to(room).emit('user_stopped_typing_group', {
+          groupId: parseInt(groupId),
+          userId: socket.userId
+        });
+      } catch (error) {
+        console.error('Stop group typing error:', error);
+      }
+    });
+
     // Handle disconnection
     socket.on('disconnect', () => {
       console.log(`🔌 User disconnected: ${socket.userId} (Socket ID: ${socket.id})`);

@@ -27,7 +27,10 @@ export const getAllCollaborations = async (req, res) => {
       paramIndex++;
     }
 
+    // Add limit and offset parameters
     params.push(parseInt(limit), parseInt(offset));
+    const limitParamIndex = paramIndex;
+    const offsetParamIndex = paramIndex + 1;
 
     const collaborations = await query(
       `SELECT 
@@ -40,7 +43,7 @@ export const getAllCollaborations = async (req, res) => {
        JOIN user_profiles up ON u.user_id = up.user_id
        WHERE ${whereClause}
        ORDER BY c.created_at DESC
-       LIMIT $${paramIndex - 1} OFFSET $${paramIndex}`,
+       LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}`,
       params
     );
 
@@ -82,7 +85,7 @@ export const getAllCollaborations = async (req, res) => {
           collaborationType: c.collaboration_type,
           title: c.title,
           description: c.description,
-          skills: c.skills,
+          skills: c.skills ? (typeof c.skills === 'string' ? JSON.parse(c.skills) : c.skills) : [],
           location: c.location,
           date: c.date,
           budget: c.budget,

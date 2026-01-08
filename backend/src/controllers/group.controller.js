@@ -1,5 +1,5 @@
 import { query } from '../config/database.js';
-import { emitToAll } from '../config/socket.js';
+import { emitToAll, emitToRoom } from '../config/socket.js';
 
 // Get all community groups (public groups or user's groups)
 export const getAllGroups = async (req, res) => {
@@ -22,7 +22,14 @@ export const getAllGroups = async (req, res) => {
       paramIndex++;
     }
 
+    // Add LIMIT and OFFSET parameters
+    const limitParamIndex = paramIndex++;
+    const offsetParamIndex = paramIndex++;
     params.push(parseInt(limit), parseInt(offset));
+
+    // Add userId parameter
+    const userIdParamIndex = paramIndex++;
+    params.push(userId);
 
     const groups = await query(
       `SELECT 
@@ -30,19 +37,19 @@ export const getAllGroups = async (req, res) => {
          up.full_name as creator_name,
          up.avatar_url as creator_avatar,
          CASE 
-           WHEN $${paramIndex}::int IS NULL THEN NULL
+           WHEN $${userIdParamIndex}::int IS NULL THEN NULL
            ELSE (
              SELECT role FROM group_members 
-             WHERE group_id = cg.group_id AND user_id = $${paramIndex}
+             WHERE group_id = cg.group_id AND user_id = $${userIdParamIndex}
            )
          END AS user_role
        FROM community_groups cg
        JOIN users u ON cg.creator_id = u.user_id
-       JOIN user_profiles up ON u.user_id = up.user_id
+       LEFT JOIN user_profiles up ON u.user_id = up.user_id
        WHERE ${whereClause}
        ORDER BY cg.last_activity_at DESC
-       LIMIT $${paramIndex - 1} OFFSET $${paramIndex}`,
-      [...params, userId]
+       LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}`,
+      params
     );
 
     // Get total count
@@ -714,6 +721,178 @@ export const removeMember = async (req, res) => {
     res.status(500).json({
       status: 'error',
       message: 'Failed to remove member'
+    });
+  }
+};
+
+// Get group messages
+export const getGroupMessages = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { groupId } = req.params;
+    const { limit = 50, offset = 0 } = req.query;
+
+    // Check if user is a member of the group
+    const membership = await query(
+      'SELECT * FROM group_members WHERE group_id = $1 AND user_id = $2',
+      [groupId, userId]
+    );
+
+    if (membership.length === 0) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'You must be a member of this group to view messages'
+      });
+    }
+
+    // Get messages for the group
+    const messages = await query(
+      `SELECT 
+        m.message_id,
+        m.sender_id,
+        m.message_text,
+        m.message_type,
+        m.attachment_url,
+        m.created_at,
+        up.full_name as sender_name,
+        up.avatar_url as sender_avatar,
+        u.user_type as sender_type
+      FROM messages m
+      JOIN users u ON m.sender_id = u.user_id
+      JOIN user_profiles up ON u.user_id = up.user_id
+      WHERE m.group_id = $1
+      ORDER BY m.created_at DESC
+      LIMIT $2 OFFSET $3`,
+      [groupId, parseInt(limit), parseInt(offset)]
+    );
+
+    // Get total count
+    const countResult = await query(
+      'SELECT COUNT(*) as total FROM messages WHERE group_id = $1',
+      [groupId]
+    );
+    const total = parseInt(countResult[0].total);
+
+    // Format messages (reverse to show oldest first)
+    const formattedMessages = messages.reverse().map(msg => ({
+      messageId: msg.message_id,
+      senderId: msg.sender_id,
+      senderName: msg.sender_name,
+      senderAvatar: msg.sender_avatar,
+      senderType: msg.sender_type,
+      messageText: msg.message_text,
+      messageType: msg.message_type,
+      attachmentUrl: msg.attachment_url,
+      createdAt: msg.created_at
+    }));
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        messages: formattedMessages,
+        total,
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      }
+    });
+  } catch (error) {
+    console.error('Get group messages error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch group messages'
+    });
+  }
+};
+
+// Send group message
+export const sendGroupMessage = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { groupId } = req.params;
+    const { messageText, messageType = 'text', attachmentUrl } = req.body;
+
+    if (!messageText || !messageText.trim()) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Message text is required'
+      });
+    }
+
+    // Check if user is a member of the group
+    const membership = await query(
+      'SELECT * FROM group_members WHERE group_id = $1 AND user_id = $2',
+      [groupId, userId]
+    );
+
+    if (membership.length === 0) {
+      return res.status(403).json({
+        status: 'error',
+        message: 'You must be a member of this group to send messages'
+      });
+    }
+
+    // Insert message
+    const result = await query(
+      `INSERT INTO messages (sender_id, group_id, message_text, message_type, attachment_url)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [userId, groupId, messageText.trim(), messageType, attachmentUrl || null]
+    );
+
+    const newMessage = result[0];
+
+    // Update group's last_activity_at
+    await query(
+      'UPDATE community_groups SET last_activity_at = CURRENT_TIMESTAMP WHERE group_id = $1',
+      [groupId]
+    );
+
+    // Get sender info
+    const senderInfo = await query(
+      `SELECT up.full_name, up.avatar_url, u.user_type
+       FROM user_profiles up
+       JOIN users u ON up.user_id = u.user_id
+       WHERE up.user_id = $1`,
+      [userId]
+    );
+
+    const sender = senderInfo[0];
+
+    // Format message for response
+    const formattedMessage = {
+      messageId: newMessage.message_id,
+      senderId: newMessage.sender_id,
+      senderName: sender.full_name,
+      senderAvatar: sender.avatar_url,
+      senderType: sender.user_type,
+      messageText: newMessage.message_text,
+      messageType: newMessage.message_type,
+      attachmentUrl: newMessage.attachment_url,
+      createdAt: newMessage.created_at
+    };
+
+    // Emit real-time event to group room
+    try {
+      emitToRoom(`group_${groupId}`, 'new_group_message', {
+        message: formattedMessage,
+        groupId: parseInt(groupId)
+      });
+      console.log(`📨 Real-time: Group message sent to group ${groupId} by user ${userId}`);
+    } catch (socketError) {
+      console.error('Socket emission error:', socketError);
+    }
+
+    res.status(201).json({
+      status: 'success',
+      data: {
+        message: formattedMessage
+      }
+    });
+  } catch (error) {
+    console.error('Send group message error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to send message'
     });
   }
 };

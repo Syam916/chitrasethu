@@ -28,6 +28,8 @@ import PhotographerMaps from "./pages/photographer/Maps";
 import PhotographerMessages from "./pages/photographer/Messages";
 import PhotographerProfileEdit from "./pages/photographer/ProfileEdit";
 import PhotographerCommunityBuzz from "./pages/photographer/CommunityBuzz";
+import GroupDetailPage from "./pages/photographer/GroupDetailPage";
+import CollaborationDetailPage from "./pages/photographer/CollaborationDetailPage";
 import PhotographerProfilePublic from "./pages/photographer/ProfilePublic";
 import PhotographerEventPhotos from "./pages/photographer/EventPhotos";
 import PhotographerEventSessionCreate from "./pages/photographer/EventSessionCreate";
@@ -60,6 +62,8 @@ const App = () => (
           <Route path="/requests" element={<Requests />} />
           <Route path="/community-buzz" element={<CommunityBuzz />} />
           <Route path="/discussions/:topicId" element={<DiscussionDetail />} />
+          <Route path="/groups/:groupId" element={<GroupDetailPage />} />
+          <Route path="/collaborations/:collaborationId" element={<CollaborationDetailPage />} />
           
           {/* Customer Routes */}
           <Route path="/customer/messages" element={<CustomerMessages />} />
@@ -68,6 +72,8 @@ const App = () => (
         <Route path="/photographer/home" element={<PhotographerHome />} />
         <Route path="/photographer/requests" element={<PhotographerRequests />} />
         <Route path="/photographer/community-buzz" element={<PhotographerCommunityBuzz />} />
+        <Route path="/photographer/groups/:groupId" element={<GroupDetailPage />} />
+        <Route path="/photographer/collaborations/:collaborationId" element={<CollaborationDetailPage />} />
         <Route path="/photographer/jobs" element={<PhotographerJobs />} />
         <Route path="/photographer/bookings" element={<PhotographerBookings />} />
         <Route path="/photographer/photo-booth" element={<PhotographerPhotoBooth />} />

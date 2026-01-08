@@ -39,6 +39,18 @@ export interface CreateGroupData {
   isPublic?: boolean;
 }
 
+export interface GroupMessage {
+  messageId: number;
+  senderId: number;
+  senderName: string;
+  senderAvatar?: string;
+  senderType: string;
+  messageText: string;
+  messageType: 'text' | 'image' | 'file';
+  attachmentUrl?: string;
+  createdAt: string;
+}
+
 class GroupService {
   // Get all groups
   async getAllGroups(params?: {
@@ -267,8 +279,74 @@ class GroupService {
       throw new Error(handleApiError(error));
     }
   }
+
+  // Get group messages
+  async getGroupMessages(
+    groupId: number,
+    params?: { limit?: number; offset?: number }
+  ): Promise<{ messages: GroupMessage[]; total: number; limit: number; offset: number }> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.offset) queryParams.append('offset', params.offset.toString());
+
+      const url = `${API_ENDPOINTS.GROUPS.MESSAGES(groupId)}?${queryParams.toString()}`;
+      const response = await fetch(url, {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch group messages');
+      }
+
+      return result.data;
+    } catch (error: any) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
+  // Send group message
+  async sendGroupMessage(
+    groupId: number,
+    data: {
+      messageText: string;
+      messageType?: 'text' | 'image' | 'file';
+      attachmentUrl?: string;
+    }
+  ): Promise<GroupMessage> {
+    try {
+      const response = await fetch(API_ENDPOINTS.GROUPS.SEND_MESSAGE(groupId), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader(),
+        },
+        body: JSON.stringify({
+          messageText: data.messageText,
+          messageType: data.messageType || 'text',
+          attachmentUrl: data.attachmentUrl,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to send message');
+      }
+
+      return result.data.message;
+    } catch (error: any) {
+      throw new Error(handleApiError(error));
+    }
+  }
 }
 
 export default new GroupService();
+
+
 
 

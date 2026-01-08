@@ -1,25 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Users, MessageCircle, Heart, Share2, Award, Camera, Calendar, MapPin, Loader2, AlertCircle, Plus } from 'lucide-react';
+import { TrendingUp, Users, MessageCircle, Heart, Share2, Award, Camera, Calendar, MapPin, Loader2, AlertCircle, Plus, Search, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Alert, AlertDescription } from '../components/ui/alert';
+import { Input } from '../components/ui/input';
 import NavbarIntegrated from '../components/home/NavbarIntegrated';
 import { socialPosts, photographers, upcomingEvents, trendingEvents } from '../data/dummyData';
-import postService from '../services/post.service';
+import postService, { Post } from '../services/post.service';
 import discussionService, { DiscussionTopic } from '../services/discussion.service';
+import groupService, { CommunityGroup } from '../services/group.service';
+import collaborationService, { Collaboration } from '../services/collaboration.service';
 import { formatDistanceToNow } from 'date-fns';
 import { CreateDiscussionDialog } from '../components/discussions/CreateDiscussionDialog';
+import { CreateGroupDialog } from '../components/groups/CreateGroupDialog';
+import { CreateCollaborationDialog } from '../components/collaborations/CreateCollaborationDialog';
 import authService from '../services/auth.service';
 import { useCommunityBuzzSocket } from '../hooks/useCommunityBuzzSocket';
+import { useToast } from '../components/ui/use-toast';
 
 const CommunityBuzz = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [likedPosts, setLikedPosts] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState('feed');
+  const [groupsView, setGroupsView] = useState<'my' | 'browse'>('my');
+  
+  // Posts state
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsError, setPostsError] = useState<string | null>(null);
   
   // Discussion state
   const [discussionTopics, setDiscussionTopics] = useState<DiscussionTopic[]>([]);
@@ -30,10 +43,52 @@ const CommunityBuzz = () => {
   const [createDiscussionOpen, setCreateDiscussionOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
+  // Groups state
+  const [groups, setGroups] = useState<CommunityGroup[]>([]);
+  const [allGroups, setAllGroups] = useState<CommunityGroup[]>([]);
+  const [groupsLoading, setGroupsLoading] = useState(false);
+  const [allGroupsLoading, setAllGroupsLoading] = useState(false);
+  const [groupsError, setGroupsError] = useState<string | null>(null);
+  const [allGroupsError, setAllGroupsError] = useState<string | null>(null);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [groupSearch, setGroupSearch] = useState('');
+  const [joiningGroupId, setJoiningGroupId] = useState<number | null>(null);
+
+  // Collaborations state
+  const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
+  const [collaborationsLoading, setCollaborationsLoading] = useState(false);
+  const [collaborationsError, setCollaborationsError] = useState<string | null>(null);
+  const [createCollaborationOpen, setCreateCollaborationOpen] = useState(false);
+
   // Check authentication
   useEffect(() => {
     setIsAuthenticated(authService.isAuthenticated());
   }, []);
+
+  // Load posts when feed tab is active
+  useEffect(() => {
+    if (activeTab === 'feed') {
+      loadPosts();
+    }
+  }, [activeTab]);
+
+  // Load groups when groups tab is active
+  useEffect(() => {
+    if (activeTab === 'groups') {
+      if (groupsView === 'my') {
+        loadMyGroups();
+      } else {
+        loadAllGroups();
+      }
+    }
+  }, [activeTab, groupsView]);
+
+  // Load collaborations when collaborations tab is active
+  useEffect(() => {
+    if (activeTab === 'collaborations') {
+      loadCollaborations();
+    }
+  }, [activeTab]);
 
   // Real-time updates
   useCommunityBuzzSocket({
@@ -54,6 +109,24 @@ const CommunityBuzz = () => {
       // Refresh discussions when any discussion is updated
       if (activeTab === 'discussions') {
         loadDiscussionTopics();
+      }
+    },
+    onNewGroup: (group) => {
+      // Add new group to the list
+      if (activeTab === 'groups') {
+        loadMyGroups();
+      }
+    },
+    onNewCollaboration: (collaboration) => {
+      // Add new collaboration to the list
+      if (activeTab === 'collaborations') {
+        loadCollaborations();
+      }
+    },
+    onCollaborationUpdated: (collaborationId) => {
+      // Refresh collaborations when updated
+      if (activeTab === 'collaborations') {
+        loadCollaborations();
       }
     }
   });
@@ -94,12 +167,133 @@ const CommunityBuzz = () => {
     }
   };
 
-  const toggleLike = (postId: number) => {
-    setLikedPosts(prev => 
-      prev.includes(postId) 
-        ? prev.filter(id => id !== postId)
-        : [...prev, postId]
-    );
+  const loadPosts = async () => {
+    try {
+      setPostsLoading(true);
+      setPostsError(null);
+      const fetchedPosts = await postService.getAll(50, 0);
+      setPosts(fetchedPosts);
+      
+      // Track which posts are liked by current user
+      const likedPostIds = fetchedPosts
+        .filter(post => post.isLikedByCurrentUser)
+        .map(post => post.postId);
+      setLikedPosts(likedPostIds);
+    } catch (error: any) {
+      console.error('Error loading posts:', error);
+      setPostsError(error.message || 'Failed to load posts');
+      // Fallback to empty array on error
+      setPosts([]);
+    } finally {
+      setPostsLoading(false);
+    }
+  };
+
+  const toggleLike = async (postId: number) => {
+    try {
+      const result = await postService.toggleLike(postId);
+      
+      // Update local state
+      setLikedPosts(prev => 
+        result.isLikedByCurrentUser
+          ? [...prev.filter(id => id !== postId), postId]
+          : prev.filter(id => id !== postId)
+      );
+      
+      // Update post in list
+      setPosts(prev => prev.map(post => 
+        post.postId === postId
+          ? { ...post, likesCount: result.likesCount, isLikedByCurrentUser: result.isLikedByCurrentUser }
+          : post
+      ));
+    } catch (error: any) {
+      console.error('Error toggling like:', error);
+      // Show error toast if needed
+    }
+  };
+
+  const loadMyGroups = async () => {
+    try {
+      setGroupsLoading(true);
+      setGroupsError(null);
+      const result = await groupService.getMyGroups({ limit: 50, offset: 0 });
+      setGroups(result.groups);
+    } catch (error: any) {
+      console.error('Error loading groups:', error);
+      setGroupsError(error.message || 'Failed to load groups');
+    } finally {
+      setGroupsLoading(false);
+    }
+  };
+
+  const loadAllGroups = async () => {
+    try {
+      setAllGroupsLoading(true);
+      setAllGroupsError(null);
+      const params: any = { limit: 50, offset: 0 };
+      if (groupSearch) {
+        params.search = groupSearch;
+      }
+      const result = await groupService.getAllGroups(params);
+      setAllGroups(result.groups);
+    } catch (error: any) {
+      console.error('Error loading all groups:', error);
+      setAllGroupsError(error.message || 'Failed to load groups');
+    } finally {
+      setAllGroupsLoading(false);
+    }
+  };
+
+  const handleJoinGroup = async (groupId: number, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    try {
+      setJoiningGroupId(groupId);
+      await groupService.joinGroup(groupId);
+      toast({
+        title: 'Success!',
+        description: 'You have successfully joined the group.',
+      });
+      // Reload both views
+      if (groupsView === 'my') {
+        loadMyGroups();
+      } else {
+        loadAllGroups();
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to join group',
+        variant: 'destructive',
+      });
+    } finally {
+      setJoiningGroupId(null);
+    }
+  };
+
+  const loadCollaborations = async () => {
+    try {
+      setCollaborationsLoading(true);
+      setCollaborationsError(null);
+      const result = await collaborationService.getAllCollaborations({ limit: 50, offset: 0 });
+      setCollaborations(result.collaborations);
+    } catch (error: any) {
+      console.error('Error loading collaborations:', error);
+      setCollaborationsError(error.message || 'Failed to load collaborations');
+    } finally {
+      setCollaborationsLoading(false);
+    }
+  };
+
+  const handleRespondToCollaboration = async (collaborationId: number) => {
+    try {
+      await collaborationService.respondToCollaboration(collaborationId);
+      alert('Response submitted successfully!');
+      loadCollaborations(); // Reload collaborations
+    } catch (error: any) {
+      alert(error.message || 'Failed to submit response');
+    }
   };
 
   // Community highlights (can be enhanced later with real data)
@@ -158,11 +352,11 @@ const CommunityBuzz = () => {
               <div className="text-sm text-muted-foreground">Active Members</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-primary">150+</div>
-              <div className="text-sm text-muted-foreground">Daily Posts</div>
+              <div className="text-2xl font-bold text-primary">{posts.length}</div>
+              <div className="text-sm text-muted-foreground">Posts</div>
             </div>
             <div>
-              <div className="text-2xl font-bold text-primary">{discussionTopics.length}+</div>
+              <div className="text-2xl font-bold text-primary">{discussionTopics.length}</div>
               <div className="text-sm text-muted-foreground">Active Discussions</div>
             </div>
           </div>
@@ -171,11 +365,12 @@ const CommunityBuzz = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="feed">Community Feed</TabsTrigger>
             <TabsTrigger value="discussions">Discussions</TabsTrigger>
+            <TabsTrigger value="groups">My Groups</TabsTrigger>
+            <TabsTrigger value="collaborations">Collaborations</TabsTrigger>
             <TabsTrigger value="events">Events</TabsTrigger>
-            <TabsTrigger value="trending">Trending</TabsTrigger>
           </TabsList>
 
           {/* Community Feed */}
@@ -218,41 +413,67 @@ const CommunityBuzz = () => {
 
                 {/* Social Posts */}
                 <div className="space-y-6">
-                  {socialPosts.map((post) => (
-                    <Card key={post.id} className="glass-effect">
+                  {postsLoading && (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      <span className="ml-2 text-muted-foreground">Loading posts...</span>
+                    </div>
+                  )}
+
+                  {postsError && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>{postsError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {!postsLoading && !postsError && posts.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Camera className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-semibold mb-2">No posts yet</p>
+                      <p>Be the first to share something with the community!</p>
+                    </div>
+                  )}
+
+                  {!postsLoading && !postsError && posts.map((post) => (
+                    <Card key={post.postId} className="glass-effect">
                       <CardContent className="p-0">
                         {/* Post Header */}
                         <div className="p-4 border-b border-border/50">
                           <div className="flex items-center space-x-3">
                             <Avatar className="w-10 h-10 ring-2 ring-primary/20">
-                              <AvatarImage src={post.user.avatar} alt={post.user.name} />
+                              <AvatarImage src={post.avatarUrl} alt={post.fullName} />
                               <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
-                                {post.user.name.split(' ').map(n => n[0]).join('')}
+                                {post.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
                               <div className="flex items-center space-x-1">
-                                <h3 className="font-semibold text-sm">{post.user.name}</h3>
-                                {post.user.verified && (
-                                  <Badge variant="secondary" className="text-xs px-1">✓</Badge>
-                                )}
+                                <h3 className="font-semibold text-sm">{post.fullName}</h3>
+                                <Badge variant="secondary" className="text-xs capitalize">
+                                  {post.userType}
+                                </Badge>
                               </div>
-                              <p className="text-xs text-muted-foreground">{post.user.username}</p>
-                              <p className="text-xs text-muted-foreground">{post.content.location} • {post.engagement.timestamp}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {post.location && `${post.location} • `}
+                                {formatTimeAgo(post.createdAt)}
+                              </p>
                             </div>
                           </div>
                         </div>
 
                         {/* Post Media */}
-                        <div className="relative">
-                          <div className="aspect-square bg-muted/20">
-                            <img 
-                              src={post.content.media[0]} 
-                              alt="Post content" 
-                              className="w-full h-full object-cover"
-                            />
+                        {post.mediaUrls && post.mediaUrls.length > 0 && (
+                          <div className="relative">
+                            <div className="aspect-square bg-muted/20">
+                              <img 
+                                src={post.mediaUrls[0].url || post.thumbnailUrl} 
+                                alt={post.caption || "Post content"} 
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
                           </div>
-                        </div>
+                        )}
 
                         {/* Post Actions & Content */}
                         <div className="p-4">
@@ -261,34 +482,38 @@ const CommunityBuzz = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className={`flex items-center space-x-1 ${likedPosts.includes(post.id) ? 'text-red-500' : ''}`}
-                                onClick={() => toggleLike(post.id)}
+                                className={`flex items-center space-x-1 ${likedPosts.includes(post.postId) ? 'text-red-500' : ''}`}
+                                onClick={() => toggleLike(post.postId)}
                               >
-                                <Heart className={`w-5 h-5 ${likedPosts.includes(post.id) ? 'fill-current' : ''}`} />
-                                <span className="text-sm font-medium">{post.engagement.likes + (likedPosts.includes(post.id) ? 1 : 0)}</span>
+                                <Heart className={`w-5 h-5 ${likedPosts.includes(post.postId) ? 'fill-current' : ''}`} />
+                                <span className="text-sm font-medium">{post.likesCount}</span>
                               </Button>
                               
                               <Button variant="ghost" size="sm" className="flex items-center space-x-1">
                                 <MessageCircle className="w-5 h-5" />
-                                <span className="text-sm font-medium">{post.engagement.comments}</span>
+                                <span className="text-sm font-medium">{post.commentsCount}</span>
                               </Button>
                               
                               <Button variant="ghost" size="sm" className="flex items-center space-x-1">
                                 <Share2 className="w-5 h-5" />
-                                <span className="text-sm font-medium">{post.engagement.shares}</span>
+                                <span className="text-sm font-medium">{post.sharesCount}</span>
                               </Button>
                             </div>
                           </div>
 
-                          <p className="text-sm leading-relaxed mb-2">{post.content.caption}</p>
+                          {post.caption && (
+                            <p className="text-sm leading-relaxed mb-2">{post.caption}</p>
+                          )}
                           
-                          <div className="flex flex-wrap gap-2">
-                            {post.tags.map((tag, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                          </div>
+                          {post.tags && post.tags.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {post.tags.map((tag, index) => (
+                                <Badge key={index} variant="outline" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -526,6 +751,392 @@ const CommunityBuzz = () => {
             </div>
           </TabsContent>
 
+          {/* Groups */}
+          <TabsContent value="groups" className="space-y-6">
+            {/* Sub-tabs for My Groups vs Browse All */}
+            <div className="flex items-center justify-between mb-4">
+              <Tabs value={groupsView} onValueChange={(v) => setGroupsView(v as 'my' | 'browse')} className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="my">My Groups</TabsTrigger>
+                  <TabsTrigger value="browse">Browse All Groups</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {/* Search for Browse view */}
+            {groupsView === 'browse' && (
+              <div className="flex gap-2 mb-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search groups by name..."
+                    value={groupSearch}
+                    onChange={(e) => {
+                      setGroupSearch(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        loadAllGroups();
+                      }
+                    }}
+                    className="pl-10"
+                  />
+                </div>
+                <Button onClick={loadAllGroups} variant="outline">
+                  <Search className="w-4 h-4 mr-2" />
+                  Search
+                </Button>
+              </div>
+            )}
+
+            {/* My Groups View */}
+            {groupsView === 'my' && (
+              <>
+                {groupsLoading && (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    <span className="ml-2 text-muted-foreground">Loading groups...</span>
+                  </div>
+                )}
+
+                {groupsError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{groupsError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {!groupsLoading && !groupsError && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {groups.length === 0 ? (
+                      <div className="col-span-full text-center py-12 text-muted-foreground">
+                        <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-semibold mb-2">No groups yet</p>
+                        <p>Join a group or create your own community to get started!</p>
+                        <div className="flex gap-2 justify-center mt-4">
+                          {isAuthenticated && (
+                            <Button onClick={() => setCreateGroupOpen(true)}>
+                              <Plus className="w-4 h-4 mr-2" />
+                              Start New Community
+                            </Button>
+                          )}
+                          <Button 
+                            variant="outline"
+                            onClick={() => setGroupsView('browse')}
+                          >
+                            Browse All Groups
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      groups.map((group) => {
+                        const userType = localStorage.getItem('userType');
+                        const groupPath = userType === 'photographer' 
+                          ? `/photographer/groups/${group.groupId}`
+                          : `/groups/${group.groupId}`;
+                        return (
+                          <Card 
+                            key={group.groupId} 
+                            className="glass-effect hover:shadow-elegant transition-all duration-300 cursor-pointer"
+                            onClick={() => navigate(groupPath)}
+                          >
+                            <CardHeader className="pb-4">
+                              <div className="flex items-start gap-3">
+                                <Avatar className="w-12 h-12 ring-2 ring-primary/20">
+                                  <AvatarImage src={group.groupIconUrl} alt={group.groupName} />
+                                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
+                                    {group.groupName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <CardTitle className="text-lg">{group.groupName}</CardTitle>
+                                    <Badge variant="outline" className="capitalize text-xs">
+                                      {group.groupType}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">{group.description}</p>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>{group.memberCount} members</span>
+                                <span>Last active {formatTimeAgo(group.lastActivityAt)}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                                  {group.role || group.userRole || 'member'}
+                                </Badge>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="text-xs text-primary flex items-center gap-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(groupPath);
+                                  }}
+                                >
+                                  View Details <ChevronRight className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Browse All Groups View */}
+            {groupsView === 'browse' && (
+              <>
+                {allGroupsLoading && (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    <span className="ml-2 text-muted-foreground">Loading groups...</span>
+                  </div>
+                )}
+
+                {allGroupsError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{allGroupsError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {!allGroupsLoading && !allGroupsError && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {allGroups.length === 0 ? (
+                      <div className="col-span-full text-center py-12 text-muted-foreground">
+                        <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-semibold mb-2">No groups found</p>
+                        <p>Try adjusting your search or create a new group!</p>
+                      </div>
+                    ) : (
+                      allGroups.map((group) => {
+                        const isMember = group.role || group.userRole;
+                        const userType = localStorage.getItem('userType');
+                        const groupPath = userType === 'photographer' 
+                          ? `/photographer/groups/${group.groupId}`
+                          : `/groups/${group.groupId}`;
+                        return (
+                          <Card 
+                            key={group.groupId} 
+                            className="glass-effect hover:shadow-elegant transition-all duration-300 cursor-pointer"
+                            onClick={() => navigate(groupPath)}
+                          >
+                            <CardHeader className="pb-4">
+                              <div className="flex items-start gap-3">
+                                <Avatar className="w-12 h-12 ring-2 ring-primary/20">
+                                  <AvatarImage src={group.groupIconUrl} alt={group.groupName} />
+                                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
+                                    {group.groupName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <CardTitle className="text-lg">{group.groupName}</CardTitle>
+                                    <Badge variant="outline" className="capitalize text-xs">
+                                      {group.groupType}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">{group.description}</p>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>{group.memberCount} members</span>
+                                <span>Last active {formatTimeAgo(group.lastActivityAt)}</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                {isMember ? (
+                                  <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                                    {group.role || group.userRole}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs">
+                                    Public Group
+                                  </Badge>
+                                )}
+                                <div className="flex items-center gap-2">
+                                  {!isMember && (
+                                    <Button 
+                                      size="sm" 
+                                      className="text-xs"
+                                      onClick={(e) => handleJoinGroup(group.groupId, e)}
+                                      disabled={joiningGroupId === group.groupId}
+                                    >
+                                      {joiningGroupId === group.groupId ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                          Joining...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Plus className="w-3 h-3 mr-1" />
+                                          Join
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-xs text-primary flex items-center gap-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(groupPath);
+                                    }}
+                                  >
+                                    View <ChevronRight className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+          </TabsContent>
+
+          {/* Collaborations */}
+          <TabsContent value="collaborations" className="space-y-6">
+            <div className="flex justify-end mb-4">
+              {isAuthenticated && (
+                <Button onClick={() => setCreateCollaborationOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Post Collaboration
+                </Button>
+              )}
+            </div>
+
+            {collaborationsLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading collaborations...</span>
+              </div>
+            )}
+
+            {collaborationsError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{collaborationsError}</AlertDescription>
+              </Alert>
+            )}
+
+            {!collaborationsLoading && !collaborationsError && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {collaborations.length === 0 ? (
+                  <div className="col-span-full text-center py-12 text-muted-foreground">
+                    <Share2 className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-semibold mb-2">No collaborations yet</p>
+                    <p>Browse available collaborations or post your own!</p>
+                  </div>
+                ) : (
+                  collaborations.map((collab) => (
+                    <Card 
+                      key={collab.collaborationId} 
+                      className="glass-effect hover:shadow-elegant transition-all duration-300 cursor-pointer"
+                      onClick={() => {
+                        const userType = localStorage.getItem('userType');
+                        if (userType === 'photographer') {
+                          navigate(`/photographer/collaborations/${collab.collaborationId}`);
+                        } else {
+                          // For customers, we can use the same route or create customer-specific
+                          navigate(`/photographer/collaborations/${collab.collaborationId}`);
+                        }
+                      }}
+                    >
+                      <CardHeader className="pb-4">
+                        <div className="flex items-start gap-3">
+                          <Avatar className="w-10 h-10 ring-2 ring-primary/20">
+                            <AvatarImage src={collab.posterAvatar} alt={collab.posterName} />
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs">
+                              {collab.posterName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <CardTitle className="text-lg">{collab.title}</CardTitle>
+                            <p className="text-xs text-muted-foreground">{collab.posterName}</p>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                          <Badge variant={collab.collaborationType === 'seeking' ? 'secondary' : 'default'} className="capitalize">
+                            {collab.collaborationType}
+                          </Badge>
+                          {collab.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {collab.location}
+                            </span>
+                          )}
+                          {collab.date && <span>{collab.date}</span>}
+                          {collab.budget && <span className="font-medium text-primary">{collab.budget}</span>}
+                        </div>
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          {collab.description}
+                        </p>
+                        {collab.skills && collab.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {collab.skills.map((skill, index) => (
+                              <Badge key={index} variant="outline" className="text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{collab.responsesCount} responses</span>
+                          <span>Posted {formatTimeAgo(collab.createdAt)}</span>
+                        </div>
+                        {isAuthenticated && (
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              className="flex-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const userType = localStorage.getItem('userType');
+                                if (userType === 'photographer') {
+                                  navigate(`/photographer/collaborations/${collab.collaborationId}`);
+                                } else {
+                                  navigate(`/photographer/collaborations/${collab.collaborationId}`);
+                                }
+                              }}
+                            >
+                              View Details
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRespondToCollaboration(collab.collaborationId);
+                              }}
+                            >
+                              Respond
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+            )}
+          </TabsContent>
+
           {/* Trending */}
           <TabsContent value="trending" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -572,6 +1183,24 @@ const CommunityBuzz = () => {
         onDiscussionCreated={() => {
           loadDiscussionTopics();
           loadDiscussionCategories();
+        }}
+      />
+
+      {/* Create Group Dialog */}
+      <CreateGroupDialog
+        open={createGroupOpen}
+        onOpenChange={setCreateGroupOpen}
+        onGroupCreated={() => {
+          loadMyGroups();
+        }}
+      />
+
+      {/* Create Collaboration Dialog */}
+      <CreateCollaborationDialog
+        open={createCollaborationOpen}
+        onOpenChange={setCreateCollaborationOpen}
+        onCollaborationCreated={() => {
+          loadCollaborations();
         }}
       />
     </div>

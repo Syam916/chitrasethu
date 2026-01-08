@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Plus, MessageCircle, Shield, Calendar, MapPin, Sparkles, Share2, Link, ChevronRight, Loader2, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Plus, MessageCircle, Shield, Calendar, MapPin, Sparkles, Share2, Link, ChevronRight, Loader2, AlertCircle, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Alert, AlertDescription } from '../ui/alert';
+import { Input } from '../ui/input';
 import PhotographerNavbar from './PhotographerNavbar';
 import { upcomingEvents } from '@/data/dummyData';
 import groupService, { CommunityGroup } from '@/services/group.service';
@@ -14,15 +16,24 @@ import { formatDistanceToNow } from 'date-fns';
 import { CreateGroupDialog } from '../groups/CreateGroupDialog';
 import { CreateCollaborationDialog } from '../collaborations/CreateCollaborationDialog';
 import { useCommunityBuzzSocket } from '@/hooks/useCommunityBuzzSocket';
+import { useToast } from '../ui/use-toast';
 
 const PhotographerCommunityBuzzPage = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('groups');
+  const [groupsView, setGroupsView] = useState<'my' | 'browse'>('my');
 
   // Groups state
   const [groups, setGroups] = useState<CommunityGroup[]>([]);
+  const [allGroups, setAllGroups] = useState<CommunityGroup[]>([]);
   const [groupsLoading, setGroupsLoading] = useState(false);
+  const [allGroupsLoading, setAllGroupsLoading] = useState(false);
   const [groupsError, setGroupsError] = useState<string | null>(null);
+  const [allGroupsError, setAllGroupsError] = useState<string | null>(null);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [groupSearch, setGroupSearch] = useState('');
+  const [joiningGroupId, setJoiningGroupId] = useState<number | null>(null);
 
   // Collaborations state
   const [collaborations, setCollaborations] = useState<Collaboration[]>([]);
@@ -33,9 +44,13 @@ const PhotographerCommunityBuzzPage = () => {
   // Load groups
   useEffect(() => {
     if (activeTab === 'groups') {
-      loadMyGroups();
+      if (groupsView === 'my') {
+        loadMyGroups();
+      } else {
+        loadAllGroups();
+      }
     }
-  }, [activeTab]);
+  }, [activeTab, groupsView]);
 
   // Load collaborations
   useEffect(() => {
@@ -80,6 +95,24 @@ const PhotographerCommunityBuzzPage = () => {
     }
   };
 
+  const loadAllGroups = async () => {
+    try {
+      setAllGroupsLoading(true);
+      setAllGroupsError(null);
+      const params: any = { limit: 50, offset: 0 };
+      if (groupSearch) {
+        params.search = groupSearch;
+      }
+      const result = await groupService.getAllGroups(params);
+      setAllGroups(result.groups);
+    } catch (error: any) {
+      console.error('Error loading all groups:', error);
+      setAllGroupsError(error.message || 'Failed to load groups');
+    } finally {
+      setAllGroupsLoading(false);
+    }
+  };
+
   const loadCollaborations = async () => {
     try {
       setCollaborationsLoading(true);
@@ -102,12 +135,31 @@ const PhotographerCommunityBuzzPage = () => {
     }
   };
 
-  const handleJoinGroup = async (groupId: number) => {
+  const handleJoinGroup = async (groupId: number, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
     try {
+      setJoiningGroupId(groupId);
       await groupService.joinGroup(groupId);
-      loadMyGroups(); // Reload groups
+      toast({
+        title: 'Success!',
+        description: 'You have successfully joined the group.',
+      });
+      // Reload both views
+      if (groupsView === 'my') {
+        loadMyGroups();
+      } else {
+        loadAllGroups();
+      }
     } catch (error: any) {
-      alert(error.message || 'Failed to join group');
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to join group',
+        variant: 'destructive',
+      });
+    } finally {
+      setJoiningGroupId(null);
     }
   };
 
@@ -172,73 +224,245 @@ const PhotographerCommunityBuzzPage = () => {
 
           {/* Groups */}
           <TabsContent value="groups" className="space-y-6">
-            {groupsLoading && (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span className="ml-2 text-muted-foreground">Loading groups...</span>
+            {/* Sub-tabs for My Groups vs Browse All */}
+            <div className="flex items-center justify-between mb-4">
+              <Tabs value={groupsView} onValueChange={(v) => setGroupsView(v as 'my' | 'browse')} className="w-full">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="my">My Groups</TabsTrigger>
+                  <TabsTrigger value="browse">Browse All Groups</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+
+            {/* Search for Browse view */}
+            {groupsView === 'browse' && (
+              <div className="flex gap-2 mb-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Search groups by name..."
+                    value={groupSearch}
+                    onChange={(e) => {
+                      setGroupSearch(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        loadAllGroups();
+                      }
+                    }}
+                    className="pl-10"
+                  />
+                </div>
+                <Button onClick={loadAllGroups} variant="outline">
+                  <Search className="w-4 h-4 mr-2" />
+                  Search
+                </Button>
               </div>
             )}
 
-            {groupsError && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{groupsError}</AlertDescription>
-              </Alert>
-            )}
-
-            {!groupsLoading && !groupsError && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {groups.length === 0 ? (
-                  <div className="col-span-full text-center py-12 text-muted-foreground">
-                    <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-semibold mb-2">No groups yet</p>
-                    <p>Join a group or create your own community to get started!</p>
+            {/* My Groups View */}
+            {groupsView === 'my' && (
+              <>
+                {groupsLoading && (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    <span className="ml-2 text-muted-foreground">Loading groups...</span>
                   </div>
-                ) : (
-                  groups.map((group) => (
-                    <Card key={group.groupId} className="glass-effect hover:shadow-elegant transition-all duration-300">
-                      <CardHeader className="pb-4">
-                        <div className="flex items-start gap-3">
-                          <Avatar className="w-12 h-12 ring-2 ring-primary/20">
-                            <AvatarImage src={group.groupIconUrl} alt={group.groupName} />
-                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
-                              {group.groupName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <CardTitle className="text-lg">{group.groupName}</CardTitle>
-                              <Badge variant="outline" className="capitalize text-xs">
-                                {group.groupType}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground">{group.description}</p>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{group.memberCount} members</span>
-                          <span>Last active {formatTimeAgo(group.lastActivityAt)}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
-                            {group.role || group.userRole}
-                          </Badge>
-                          <div className="flex items-center gap-2">
-                            {group.unreadCount && group.unreadCount > 0 && (
-                              <Badge variant="destructive">{group.unreadCount} new</Badge>
-                            )}
-                            <Button variant="ghost" size="sm" className="text-xs text-primary flex items-center gap-1">
-                              Open Chat <ChevronRight className="w-3 h-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))
                 )}
-              </div>
+
+                {groupsError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{groupsError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {!groupsLoading && !groupsError && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {groups.length === 0 ? (
+                      <div className="col-span-full text-center py-12 text-muted-foreground">
+                        <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-semibold mb-2">No groups yet</p>
+                        <p>Join a group or create your own community to get started!</p>
+                        <Button 
+                          className="mt-4" 
+                          variant="outline"
+                          onClick={() => setGroupsView('browse')}
+                        >
+                          Browse All Groups
+                        </Button>
+                      </div>
+                    ) : (
+                      groups.map((group) => (
+                        <Card 
+                          key={group.groupId} 
+                          className="glass-effect hover:shadow-elegant transition-all duration-300 cursor-pointer"
+                          onClick={() => navigate(`/photographer/groups/${group.groupId}`)}
+                        >
+                          <CardHeader className="pb-4">
+                            <div className="flex items-start gap-3">
+                              <Avatar className="w-12 h-12 ring-2 ring-primary/20">
+                                <AvatarImage src={group.groupIconUrl} alt={group.groupName} />
+                                <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
+                                  {group.groupName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <CardTitle className="text-lg">{group.groupName}</CardTitle>
+                                  <Badge variant="outline" className="capitalize text-xs">
+                                    {group.groupType}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-muted-foreground">{group.description}</p>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                              <span>{group.memberCount} members</span>
+                              <span>Last active {formatTimeAgo(group.lastActivityAt)}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                                {group.role || group.userRole}
+                              </Badge>
+                              <div className="flex items-center gap-2">
+                                {group.unreadCount && group.unreadCount > 0 && (
+                                  <Badge variant="destructive">{group.unreadCount} new</Badge>
+                                )}
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  className="text-xs text-primary flex items-center gap-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/photographer/groups/${group.groupId}`);
+                                  }}
+                                >
+                                  View Details <ChevronRight className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Browse All Groups View */}
+            {groupsView === 'browse' && (
+              <>
+                {allGroupsLoading && (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                    <span className="ml-2 text-muted-foreground">Loading groups...</span>
+                  </div>
+                )}
+
+                {allGroupsError && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{allGroupsError}</AlertDescription>
+                  </Alert>
+                )}
+
+                {!allGroupsLoading && !allGroupsError && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {allGroups.length === 0 ? (
+                      <div className="col-span-full text-center py-12 text-muted-foreground">
+                        <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-lg font-semibold mb-2">No groups found</p>
+                        <p>Try adjusting your search or create a new group!</p>
+                      </div>
+                    ) : (
+                      allGroups.map((group) => {
+                        const isMember = group.role || group.userRole;
+                        return (
+                          <Card 
+                            key={group.groupId} 
+                            className="glass-effect hover:shadow-elegant transition-all duration-300 cursor-pointer"
+                            onClick={() => navigate(`/photographer/groups/${group.groupId}`)}
+                          >
+                            <CardHeader className="pb-4">
+                              <div className="flex items-start gap-3">
+                                <Avatar className="w-12 h-12 ring-2 ring-primary/20">
+                                  <AvatarImage src={group.groupIconUrl} alt={group.groupName} />
+                                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
+                                    {group.groupName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <CardTitle className="text-lg">{group.groupName}</CardTitle>
+                                    <Badge variant="outline" className="capitalize text-xs">
+                                      {group.groupType}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-xs text-muted-foreground">{group.description}</p>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <span>{group.memberCount} members</span>
+                                <span>Last active {formatTimeAgo(group.lastActivityAt)}</span>
+                              </div>
+                              <div className="flex items-center justify-between gap-2">
+                                {isMember ? (
+                                  <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                                    {group.role || group.userRole}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs">
+                                    Public Group
+                                  </Badge>
+                                )}
+                                <div className="flex items-center gap-2">
+                                  {!isMember && (
+                                    <Button 
+                                      size="sm" 
+                                      className="text-xs"
+                                      onClick={(e) => handleJoinGroup(group.groupId, e)}
+                                      disabled={joiningGroupId === group.groupId}
+                                    >
+                                      {joiningGroupId === group.groupId ? (
+                                        <>
+                                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                          Joining...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Plus className="w-3 h-3 mr-1" />
+                                          Join
+                                        </>
+                                      )}
+                                    </Button>
+                                  )}
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-xs text-primary flex items-center gap-1"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      navigate(`/photographer/groups/${group.groupId}`);
+                                    }}
+                                  >
+                                    View <ChevronRight className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </TabsContent>
 
@@ -275,7 +499,11 @@ const PhotographerCommunityBuzzPage = () => {
                   </div>
                 ) : (
                   collaborations.map((collab) => (
-                    <Card key={collab.collaborationId} className="glass-effect hover:shadow-elegant transition-all duration-300">
+                    <Card 
+                      key={collab.collaborationId} 
+                      className="glass-effect hover:shadow-elegant transition-all duration-300 cursor-pointer"
+                      onClick={() => navigate(`/photographer/collaborations/${collab.collaborationId}`)}
+                    >
                       <CardHeader className="pb-4">
                         <div className="flex items-start gap-3">
                           <Avatar className="w-10 h-10 ring-2 ring-primary/20">
@@ -324,12 +552,23 @@ const PhotographerCommunityBuzzPage = () => {
                           <Button 
                             size="sm" 
                             className="flex-1"
-                            onClick={() => handleRespondToCollaboration(collab.collaborationId)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/photographer/collaborations/${collab.collaborationId}`);
+                            }}
+                          >
+                            View Details
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRespondToCollaboration(collab.collaborationId);
+                            }}
                           >
                             Respond
-                          </Button>
-                          <Button size="sm" variant="outline" className="flex-1">
-                            Save
                           </Button>
                         </div>
                       </CardContent>

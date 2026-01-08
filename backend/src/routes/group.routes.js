@@ -9,7 +9,9 @@ import {
   joinGroup,
   leaveGroup,
   updateMemberRole,
-  removeMember
+  removeMember,
+  getGroupMessages,
+  sendGroupMessage
 } from '../controllers/group.controller.js';
 import { optionalAuth, authenticateToken } from '../middleware/auth.middleware.js';
 
@@ -45,6 +47,14 @@ router.put('/:groupId/members/:memberId/role', authenticateToken, updateMemberRo
 // Remove member (requires authentication)
 router.delete('/:groupId/members/:memberId', authenticateToken, removeMember);
 
+// Get group messages (requires authentication)
+router.get('/:groupId/messages', authenticateToken, getGroupMessages);
+
+// Send group message (requires authentication)
+router.post('/:groupId/messages', authenticateToken, sendGroupMessage);
+
 export default router;
+
+
 
 
