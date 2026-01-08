@@ -32,11 +32,15 @@ import PhotographerEventPhotos from "./pages/photographer/EventPhotos";
 import PhotographerEventSessionCreate from "./pages/photographer/EventSessionCreate";
 import PhotographerMoodBoards from "./pages/photographer/MoodBoards";
 import PhotographerMoodBoardCreate from "./pages/photographer/MoodBoardCreate";
+import PhotographerMoodBoardCreateCustom from "./pages/photographer/MoodBoardCreateCustom";
+import PhotographerMoodBoardDetail from "./pages/photographer/MoodBoardDetail";
+import PhotographerMoodBoardEdit from "./pages/photographer/MoodBoardEdit";
 import PhotographerCommunity from "./pages/photographer/Community";
 import PhotographerCommunityCollaborations from "./pages/photographer/CommunityCollaborations";
 
 // Customer Routes
 import CustomerMessages from "./pages/customer/Messages";
+import PublicGallery from "./pages/PublicGallery";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +66,9 @@ const App = () => (
           {/* Customer Routes */}
           <Route path="/customer/messages" element={<CustomerMessages />} />
           
+          {/* Public Routes */}
+          <Route path="/gallery/:qrCode" element={<PublicGallery />} />
+          
           {/* Photographer Routes */}
         <Route path="/photographer/home" element={<PhotographerHome />} />
         <Route path="/photographer/requests" element={<PhotographerRequests />} />
@@ -78,6 +85,9 @@ const App = () => (
         <Route path="/photographer/event-photos/create" element={<PhotographerEventSessionCreate />} />
         <Route path="/photographer/mood-boards" element={<PhotographerMoodBoards />} />
         <Route path="/photographer/mood-boards/create" element={<PhotographerMoodBoardCreate />} />
+        <Route path="/photographer/mood-boards/create/custom" element={<PhotographerMoodBoardCreateCustom />} />
+        <Route path="/photographer/mood-boards/:boardId/edit" element={<PhotographerMoodBoardEdit />} />
+        <Route path="/photographer/mood-boards/:boardId" element={<PhotographerMoodBoardDetail />} />
         <Route path="/photographer/community" element={<PhotographerCommunity />} />
         <Route path="/photographer/community/collaborations" element={<PhotographerCommunityCollaborations />} />
           

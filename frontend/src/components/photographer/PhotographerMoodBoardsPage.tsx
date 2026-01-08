@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Search, Filter, Share2, BookmarkPlus } from 'lucide-react';
+import { Sparkles, Search, Filter, Share2, BookmarkPlus, Loader2, AlertCircle } from 'lucide-react';
 import PhotographerNavbar from './PhotographerNavbar';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -8,12 +8,16 @@ import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import authService from '@/services/auth.service';
-import { photographerMoodBoards } from '@/data/photographerDummyData';
+import moodBoardService, { MoodBoard } from '@/services/moodboard.service';
 
 const PhotographerMoodBoardsPage = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPrivacy, setSelectedPrivacy] = useState<'all' | 'public' | 'private'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [boards, setBoards] = useState<MoodBoard[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authService.isAuthenticated()) {
@@ -21,17 +25,52 @@ const PhotographerMoodBoardsPage = () => {
     }
   }, [navigate]);
 
-  const categories = useMemo(() => {
-    const unique = new Set(photographerMoodBoards.map((board) => board.category));
-    return ['All', ...Array.from(unique)];
-  }, []);
+  useEffect(() => {
+    fetchBoards();
+  }, [selectedPrivacy, selectedCategory]);
 
-  const filteredBoards = photographerMoodBoards.filter((board) => {
+  const fetchBoards = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const fetchedBoards = await moodBoardService.getAll({
+        privacy: selectedPrivacy,
+        category: selectedCategory !== 'All' ? selectedCategory : undefined,
+        search: searchTerm || undefined,
+      });
+      setBoards(fetchedBoards);
+    } catch (err: any) {
+      console.error('Error fetching mood boards:', err);
+      setError(err.message || 'Failed to load mood boards');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchTerm !== undefined) {
+        fetchBoards();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const categories = useMemo(() => {
+    const unique = new Set(boards.map((board) => board.category).filter(Boolean));
+    return ['All', ...Array.from(unique)];
+  }, [boards]);
+
+  const filteredBoards = boards.filter((board) => {
     const matchesSearch =
+      !searchTerm ||
       board.boardName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      board.description.toLowerCase().includes(searchTerm.toLowerCase());
+      board.description?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPrivacy = selectedPrivacy === 'all' || board.privacy === selectedPrivacy;
-    return matchesSearch && matchesPrivacy;
+    const matchesCategory = selectedCategory === 'All' || board.category === selectedCategory;
+    return matchesSearch && matchesPrivacy && matchesCategory;
   });
 
   return (
@@ -103,9 +142,9 @@ const PhotographerMoodBoardsPage = () => {
               {categories.map((category) => (
                 <Button
                   key={category}
-                  variant="ghost"
+                  variant={selectedCategory === category ? 'default' : 'ghost'}
                   className="w-full justify-start text-sm"
-                  onClick={() => setSearchTerm(category === 'All' ? '' : category)}
+                  onClick={() => setSelectedCategory(category)}
                 >
                   <Filter className="w-4 h-4 mr-2" />
                   {category}
@@ -122,14 +161,37 @@ const PhotographerMoodBoardsPage = () => {
           </TabsList>
 
           <TabsContent value="grid">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredBoards.map((board) => (
+            {isLoading ? (
+              <Card className="glass-effect mt-6">
+                <CardContent className="p-12 text-center">
+                  <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-primary" />
+                  <p className="text-muted-foreground">Loading mood boards...</p>
+                </CardContent>
+              </Card>
+            ) : error ? (
+              <Card className="glass-effect mt-6">
+                <CardContent className="p-6 text-center">
+                  <AlertCircle className="w-8 h-8 mx-auto mb-4 text-destructive" />
+                  <p className="text-destructive mb-4">{error}</p>
+                  <Button onClick={fetchBoards}>Try Again</Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {filteredBoards.map((board) => (
                 <Card key={board.boardId} className="glass-effect hover:shadow-elegant transition-all duration-300">
                   <div className="relative aspect-video overflow-hidden rounded-t-lg">
                     <img src={board.coverImage} alt={board.boardName} className="w-full h-full object-cover" />
-                    <Badge className="absolute top-3 left-3 bg-primary/90 text-xs capitalize">
-                      {board.privacy}
-                    </Badge>
+                    <div className="absolute top-3 left-3 flex gap-2">
+                      <Badge className="bg-primary/90 text-xs capitalize">
+                        {board.privacy}
+                      </Badge>
+                      {board.isCollaborator && (
+                        <Badge variant="secondary" className="text-xs">
+                          Collaborator
+                        </Badge>
+                      )}
+                    </div>
                     <Badge variant="secondary" className="absolute bottom-3 right-3 text-xs">
                       {board.category}
                     </Badge>
@@ -145,23 +207,42 @@ const PhotographerMoodBoardsPage = () => {
                       <span>Saves: {board.saves}</span>
                     </div>
                     <div className="flex gap-2">
-                      <Button size="sm" className="flex-1">
+                      <Button 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => {
+                          // TODO: Implement share functionality
+                          if (board.privacy === 'public') {
+                            navigator.clipboard.writeText(`${window.location.origin}/photographer/mood-boards/${board.boardId}`);
+                            alert('Board link copied to clipboard!');
+                          } else {
+                            alert('Private boards cannot be shared publicly');
+                          }
+                        }}
+                      >
                         <Share2 className="w-4 h-4 mr-2" />
                         Share
                       </Button>
-                      <Button size="sm" variant="outline" className="flex-1">
-                        <BookmarkPlus className="w-4 h-4 mr-2" />
-                        Duplicate
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => navigate(`/photographer/mood-boards/${board.boardId}`)}
+                      >
+                        View
                       </Button>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
-            {filteredBoards.length === 0 && (
+                ))}
+              </div>
+            )}
+            {!isLoading && !error && filteredBoards.length === 0 && (
               <Card className="glass-effect mt-6">
                 <CardContent className="p-6 text-center text-muted-foreground">
-                  No boards match your search. Try adjusting filters or create a new board.
+                  {boards.length === 0 
+                    ? 'No mood boards yet. Create your first board to get started!'
+                    : 'No boards match your search. Try adjusting filters or create a new board.'}
                 </CardContent>
               </Card>
             )}
@@ -170,7 +251,25 @@ const PhotographerMoodBoardsPage = () => {
           <TabsContent value="list">
             <Card className="glass-effect">
               <CardContent className="divide-y divide-border/40">
-                {filteredBoards.map((board) => (
+                {isLoading ? (
+                  <div className="p-12 text-center">
+                    <Loader2 className="w-8 h-8 mx-auto mb-4 animate-spin text-primary" />
+                    <p className="text-muted-foreground">Loading mood boards...</p>
+                  </div>
+                ) : error ? (
+                  <div className="p-6 text-center">
+                    <AlertCircle className="w-8 h-8 mx-auto mb-4 text-destructive" />
+                    <p className="text-destructive mb-4">{error}</p>
+                    <Button onClick={fetchBoards}>Try Again</Button>
+                  </div>
+                ) : filteredBoards.length === 0 ? (
+                  <div className="p-6 text-center text-muted-foreground">
+                    {boards.length === 0 
+                      ? 'No mood boards yet. Create your first board to get started!'
+                      : 'No boards match your search. Try adjusting filters or create a new board.'}
+                  </div>
+                ) : (
+                  filteredBoards.map((board) => (
                   <div key={board.boardId} className="py-4 flex flex-col md:flex-row md:items-center gap-4">
                     <img
                       src={board.coverImage}
@@ -187,11 +286,30 @@ const PhotographerMoodBoardsPage = () => {
                       <p className="text-sm text-muted-foreground">{board.description}</p>
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Button size="sm">Open Board</Button>
-                      <Button size="sm" variant="outline">Share</Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => navigate(`/photographer/mood-boards/${board.boardId}`)}
+                      >
+                        Open Board
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          if (board.privacy === 'public') {
+                            navigator.clipboard.writeText(`${window.location.origin}/photographer/mood-boards/${board.boardId}`);
+                            alert('Board link copied to clipboard!');
+                          } else {
+                            alert('Private boards cannot be shared publicly');
+                          }
+                        }}
+                      >
+                        Share
+                      </Button>
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -208,7 +326,7 @@ const PhotographerMoodBoardsPage = () => {
                 Share curated mood boards with clients ahead of shoots, collaborate on ideas, and lock your visual direction before the big day.
               </p>
             </div>
-            <Button size="lg" variant="outline" onClick={() => navigate('/photographer/mood-boards/create')}>
+            <Button size="lg" variant="outline" onClick={() => navigate('/photographer/mood-boards/create/custom')}>
               Build Custom Board
             </Button>
           </CardContent>

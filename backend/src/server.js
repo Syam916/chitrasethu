@@ -17,6 +17,10 @@ import photographerRoutes from './routes/photographer.routes.js';
 import postRoutes from './routes/post.routes.js';
 import messageRoutes from './routes/photographer/messages/messages.js';
 import uploadRoutes from './routes/upload.routes.js';
+import jobRoutes from './routes/job.routes.js';
+import bookingRoutes from './routes/booking.routes.js';
+import photoBoothRoutes from './routes/photoBooth.routes.js';
+import moodboardRoutes from './routes/moodboard.routes.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -81,7 +85,9 @@ app.get('/api', (req, res) => {
       bookings: '/api/bookings',
       events: '/api/events',
       posts: '/api/posts',
+      jobs: '/api/jobs',
       collections: '/api/collections',
+      moodboards: '/api/photographer/moodboards',
       messages: '/api/messages',
       notifications: '/api/notifications'
     }
@@ -94,6 +100,10 @@ app.use('/api/photographers', photographerRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/jobs', jobRoutes);
+app.use('/api', bookingRoutes);
+app.use('/api', photoBoothRoutes);
+app.use('/api/photographer/moodboards', moodboardRoutes);
 
 // ============================================================================
 // ERROR HANDLING

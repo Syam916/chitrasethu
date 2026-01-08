@@ -1,21 +1,54 @@
-import React, { useState } from 'react';
-import { Plus, Clock, MapPin, Calendar, Camera, Users, DollarSign, MessageCircle, Star, Filter } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Clock, MapPin, Calendar, Camera, Users, DollarSign, MessageCircle, Star, Filter, Loader2, Edit } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Badge } from '../components/ui/badge';
 import { Textarea } from '../components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '../components/ui/avatar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
+import { Label } from '../components/ui/label';
+import { toast } from 'sonner';
 import NavbarIntegrated from '../components/home/NavbarIntegrated';
 import { eventCategories } from '../data/dummyData';
 import avatarOne from '@/assets/photographer-1.jpg';
 import avatarTwo from '@/assets/photographer-2.jpg';
 import avatarThree from '@/assets/wedding-1.jpg';
 import avatarFour from '@/assets/prewedding-1.jpg';
+import bookingService from '@/services/booking.service';
+import photographerService from '@/services/photographer.service';
+import authService from '@/services/auth.service';
+import { useNavigate } from 'react-router-dom';
 
 const Requests = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'browse' | 'create' | 'my-requests'>('browse');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  
+  // Form state
+  const [formData, setFormData] = useState({
+    projectTitle: '',
+    category: '',
+    budgetRange: '',
+    eventDate: '',
+    location: '',
+    projectDescription: '',
+    requirements: '',
+    photographerId: '',
+    bookingTime: '',
+    durationHours: ''
+  });
+  
+  const [photographers, setPhotographers] = useState<any[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingPhotographers, setIsLoadingPhotographers] = useState(false);
+  
+  // My Requests state
+  const [myRequests, setMyRequests] = useState<any[]>([]);
+  const [isLoadingMyRequests, setIsLoadingMyRequests] = useState(false);
+  const [editingRequest, setEditingRequest] = useState<any | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
 
   // Mock requests data
   const requests = [
@@ -85,6 +118,196 @@ const Requests = () => {
     }
   ];
 
+  // Load photographers when create tab is active
+  useEffect(() => {
+    if (activeTab === 'create') {
+      loadPhotographers();
+    }
+  }, [activeTab]);
+
+  // Load my requests when my-requests tab is active
+  useEffect(() => {
+    if (activeTab === 'my-requests') {
+      loadMyRequests();
+    }
+  }, [activeTab]);
+
+  const loadPhotographers = async () => {
+    try {
+      setIsLoadingPhotographers(true);
+      const data = await photographerService.getAll();
+      setPhotographers(data);
+    } catch (error: any) {
+      console.error('Error loading photographers:', error);
+      toast.error('Failed to load photographers');
+    } finally {
+      setIsLoadingPhotographers(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const parseBudgetRange = (range: string): number => {
+    // Extract the maximum value from budget range
+    // e.g., "₹40,000 - ₹60,000" -> 60000
+    const match = range.match(/₹?([\d,]+)\s*-\s*₹?([\d,]+)/);
+    if (match) {
+      const max = parseInt(match[2].replace(/,/g, ''));
+      return max;
+    }
+    // Handle "Under ₹20,000" or "Above ₹60,000"
+    if (range.includes('Under')) {
+      const match = range.match(/₹?([\d,]+)/);
+      return match ? parseInt(match[1].replace(/,/g, '')) : 20000;
+    }
+    if (range.includes('Above')) {
+      const match = range.match(/₹?([\d,]+)/);
+      return match ? parseInt(match[1].replace(/,/g, '')) : 60000;
+    }
+    return 50000; // Default
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!formData.photographerId) {
+      toast.error('Please select a photographer');
+      return;
+    }
+    if (!formData.category) {
+      toast.error('Please select a category');
+      return;
+    }
+    if (!formData.budgetRange) {
+      toast.error('Please select a budget range');
+      return;
+    }
+    if (!formData.eventDate) {
+      toast.error('Please select an event date');
+      return;
+    }
+    if (!formData.location) {
+      toast.error('Please enter a location');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      
+      const totalAmount = parseBudgetRange(formData.budgetRange);
+      
+      await bookingService.createRequest({
+        photographer_id: parseInt(formData.photographerId),
+        event_type: formData.category,
+        booking_date: formData.eventDate,
+        booking_time: formData.bookingTime || undefined,
+        duration_hours: formData.durationHours ? parseFloat(formData.durationHours) : undefined,
+        location: formData.location,
+        venue_name: formData.location,
+        total_amount: totalAmount,
+        special_requirements: `${formData.projectDescription}\n\nRequirements: ${formData.requirements}`.trim()
+      });
+
+      toast.success('Booking request posted successfully!');
+      
+      // Reset form
+      setFormData({
+        projectTitle: '',
+        category: '',
+        budgetRange: '',
+        eventDate: '',
+        location: '',
+        projectDescription: '',
+        requirements: '',
+        photographerId: '',
+        bookingTime: '',
+        durationHours: ''
+      });
+      
+      // Switch to my-requests tab and refresh
+      setActiveTab('my-requests');
+      await loadMyRequests();
+    } catch (error: any) {
+      console.error('Error posting request:', error);
+      toast.error(error.message || 'Failed to post booking request');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const loadMyRequests = async () => {
+    try {
+      setIsLoadingMyRequests(true);
+      const response = await bookingService.getMyRequests();
+      setMyRequests(response.data.requests);
+    } catch (error: any) {
+      console.error('Error loading my requests:', error);
+      toast.error(error.message || 'Failed to load your requests');
+    } finally {
+      setIsLoadingMyRequests(false);
+    }
+  };
+
+  const handleEditRequest = (request: any) => {
+    setEditingRequest(request);
+    // Pre-fill form with request data
+    setFormData({
+      projectTitle: '',
+      category: request.eventType || '',
+      budgetRange: request.budgetRange || '',
+      eventDate: request.eventDate || '',
+      location: request.eventLocation || '',
+      projectDescription: request.requirements?.split('\n\n')[0] || '',
+      requirements: request.requirements?.split('\n\n')[1]?.replace('Requirements: ', '') || '',
+      photographerId: request.photographerId?.toString() || '',
+      bookingTime: request.eventTime !== 'Not specified' ? request.eventTime : '',
+      durationHours: request.duration?.toString() || ''
+    });
+    setShowEditModal(true);
+    setActiveTab('create');
+  };
+
+  const handleUpdateRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingRequest) return;
+
+    try {
+      setIsSubmitting(true);
+      
+      const updateData: any = {};
+      if (formData.category) updateData.event_type = formData.category;
+      if (formData.eventDate) updateData.booking_date = formData.eventDate;
+      if (formData.bookingTime) updateData.booking_time = formData.bookingTime;
+      if (formData.durationHours) updateData.duration_hours = parseFloat(formData.durationHours);
+      if (formData.location) updateData.location = formData.location;
+      if (formData.budgetRange) {
+        updateData.total_amount = parseBudgetRange(formData.budgetRange);
+      }
+      if (formData.projectDescription || formData.requirements) {
+        updateData.special_requirements = `${formData.projectDescription}\n\nRequirements: ${formData.requirements}`.trim();
+      }
+
+      await bookingService.updateRequest(editingRequest.requestId, updateData);
+      toast.success('Request updated successfully!');
+      setShowEditModal(false);
+      setEditingRequest(null);
+      await loadMyRequests();
+      setActiveTab('my-requests');
+    } catch (error: any) {
+      console.error('Error updating request:', error);
+      toast.error(error.message || 'Failed to update request');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const getUrgencyColor = (urgency: string) => {
     switch (urgency.toLowerCase()) {
       case 'high': return 'bg-red-500';
@@ -108,8 +331,11 @@ const Requests = () => {
           <h1 className="text-4xl font-playfair font-bold mb-4">
             Photography <span className="gradient-text">Requests</span>
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-xl text-muted-foreground mb-4 max-w-2xl mx-auto">
             Post your photography needs or browse available opportunities. Connect with the right photographers for your projects.
+          </p>
+          <p className="text-sm text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <strong>Browse Requests:</strong> View open photography opportunities posted by customers. <strong>Post Request:</strong> Create a booking request for a specific photographer. <strong>My Requests:</strong> Manage your posted requests and view proposals from photographers.
           </p>
           
           {/* Tabs */}
@@ -330,72 +556,253 @@ const Requests = () => {
           <div className="max-w-3xl mx-auto">
             <Card className="glass-effect">
               <CardHeader>
-                <CardTitle className="text-2xl">Post a Photography Request</CardTitle>
-                <p className="text-muted-foreground">Tell photographers what you need for your project</p>
+                <CardTitle className="text-2xl">
+                  {editingRequest ? 'Edit Photography Request' : 'Post a Photography Request'}
+                </CardTitle>
+                <p className="text-muted-foreground">
+                  {editingRequest 
+                    ? 'Update your booking request details' 
+                    : 'Tell photographers what you need for your project'}
+                </p>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Project Title</label>
-                    <Input placeholder="e.g., Wedding Photography - Beach Ceremony" />
+                <form onSubmit={editingRequest ? handleUpdateRequest : handleSubmit}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {!editingRequest && (
+                      <div>
+                        <Label htmlFor="photographer" className="block text-sm font-medium mb-2">
+                          Select Photographer <span className="text-red-500">*</span>
+                        </Label>
+                        {isLoadingPhotographers ? (
+                          <div className="flex items-center space-x-2 p-3 border border-border rounded-lg">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span className="text-sm text-muted-foreground">Loading photographers...</span>
+                          </div>
+                        ) : (
+                          <Select
+                            value={formData.photographerId}
+                            onValueChange={(value) => handleInputChange('photographerId', value)}
+                            required
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a photographer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {photographers.length === 0 ? (
+                                <SelectItem value="" disabled>No photographers available</SelectItem>
+                              ) : (
+                                photographers.map((photographer) => (
+                                  <SelectItem key={photographer.photographerId} value={photographer.photographerId.toString()}>
+                                    {photographer.businessName || photographer.fullName || `Photographer ${photographer.photographerId}`}
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    )}
+                    {editingRequest && (
+                      <div>
+                        <Label className="block text-sm font-medium mb-2">Photographer</Label>
+                        <div className="p-3 border border-border rounded-lg bg-muted/30">
+                          <span className="text-sm font-medium">{editingRequest.photographerName || 'Selected Photographer'}</span>
+                          <p className="text-xs text-muted-foreground mt-1">Photographer cannot be changed after request is created</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <Label htmlFor="projectTitle" className="block text-sm font-medium mb-2">Project Title</Label>
+                      <Input
+                        id="projectTitle"
+                        placeholder="e.g., Wedding Photography - Beach Ceremony"
+                        value={formData.projectTitle}
+                        onChange={(e) => handleInputChange('projectTitle', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="category" className="block text-sm font-medium mb-2">
+                        Category <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={formData.category}
+                        onValueChange={(value) => handleInputChange('category', value)}
+                        required
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Wedding">Wedding</SelectItem>
+                          <SelectItem value="Fashion">Fashion</SelectItem>
+                          <SelectItem value="Corporate">Corporate</SelectItem>
+                          <SelectItem value="Portrait">Portrait</SelectItem>
+                          <SelectItem value="Event">Event</SelectItem>
+                          <SelectItem value="Pre Wedding">Pre Wedding</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="budgetRange" className="block text-sm font-medium mb-2">
+                        Budget Range <span className="text-red-500">*</span>
+                      </Label>
+                      <Select
+                        value={formData.budgetRange}
+                        onValueChange={(value) => handleInputChange('budgetRange', value)}
+                        required
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select Budget" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Under ₹20,000">Under ₹20,000</SelectItem>
+                          <SelectItem value="₹20,000 - ₹40,000">₹20,000 - ₹40,000</SelectItem>
+                          <SelectItem value="₹40,000 - ₹60,000">₹40,000 - ₹60,000</SelectItem>
+                          <SelectItem value="Above ₹60,000">Above ₹60,000</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="eventDate" className="block text-sm font-medium mb-2">
+                        Event Date <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="eventDate"
+                        type="date"
+                        value={formData.eventDate}
+                        onChange={(e) => handleInputChange('eventDate', e.target.value)}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="bookingTime" className="block text-sm font-medium mb-2">Event Time (Optional)</Label>
+                      <Input
+                        id="bookingTime"
+                        type="time"
+                        value={formData.bookingTime}
+                        onChange={(e) => handleInputChange('bookingTime', e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="durationHours" className="block text-sm font-medium mb-2">Duration (Hours, Optional)</Label>
+                      <Input
+                        id="durationHours"
+                        type="number"
+                        placeholder="e.g., 8"
+                        min="1"
+                        value={formData.durationHours}
+                        onChange={(e) => handleInputChange('durationHours', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div className="md:col-span-2">
+                      <Label htmlFor="location" className="block text-sm font-medium mb-2">
+                        Location <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="location"
+                        placeholder="City, State"
+                        value={formData.location}
+                        onChange={(e) => handleInputChange('location', e.target.value)}
+                        required
+                      />
+                    </div>
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium mb-2">Category</label>
-                    <select className="w-full p-3 border border-border rounded-lg bg-background">
-                      <option>Select Category</option>
-                      <option>Wedding</option>
-                      <option>Fashion</option>
-                      <option>Corporate</option>
-                      <option>Portrait</option>
-                      <option>Event</option>
-                    </select>
+                    <Label htmlFor="projectDescription" className="block text-sm font-medium mb-2">Project Description</Label>
+                    <Textarea
+                      id="projectDescription"
+                      placeholder="Describe your photography needs in detail..."
+                      rows={4}
+                      value={formData.projectDescription}
+                      onChange={(e) => handleInputChange('projectDescription', e.target.value)}
+                    />
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium mb-2">Budget Range</label>
-                    <select className="w-full p-3 border border-border rounded-lg bg-background">
-                      <option>Select Budget</option>
-                      <option>Under ₹20,000</option>
-                      <option>₹20,000 - ₹40,000</option>
-                      <option>₹40,000 - ₹60,000</option>
-                      <option>Above ₹60,000</option>
-                    </select>
+                    <Label htmlFor="requirements" className="block text-sm font-medium mb-2">Requirements</Label>
+                    <Textarea
+                      id="requirements"
+                      placeholder="List specific requirements (e.g., number of hours, deliverables, style preferences)..."
+                      rows={3}
+                      value={formData.requirements}
+                      onChange={(e) => handleInputChange('requirements', e.target.value)}
+                    />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Event Date</label>
-                    <Input type="date" />
+                  <div className="flex justify-end space-x-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setFormData({
+                          projectTitle: '',
+                          category: '',
+                          budgetRange: '',
+                          eventDate: '',
+                          location: '',
+                          projectDescription: '',
+                          requirements: '',
+                          photographerId: '',
+                          bookingTime: '',
+                          durationHours: ''
+                        });
+                      }}
+                    >
+                      Clear Form
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="bg-gradient-to-r from-primary to-primary-glow"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          {editingRequest ? 'Updating...' : 'Posting...'}
+                        </>
+                      ) : editingRequest ? (
+                        <>
+                          <Edit className="w-4 h-4 mr-2" />
+                          Update Request
+                        </>
+                      ) : (
+                        'Post Request'
+                      )}
+                    </Button>
+                    {editingRequest && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setEditingRequest(null);
+                          setShowEditModal(false);
+                          setFormData({
+                            projectTitle: '',
+                            category: '',
+                            budgetRange: '',
+                            eventDate: '',
+                            location: '',
+                            projectDescription: '',
+                            requirements: '',
+                            photographerId: '',
+                            bookingTime: '',
+                            durationHours: ''
+                          });
+                        }}
+                      >
+                        Cancel Edit
+                      </Button>
+                    )}
                   </div>
-                  
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium mb-2">Location</label>
-                    <Input placeholder="City, State" />
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Project Description</label>
-                  <Textarea 
-                    placeholder="Describe your photography needs in detail..."
-                    rows={4}
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Requirements</label>
-                  <Textarea 
-                    placeholder="List specific requirements (e.g., number of hours, deliverables, style preferences)..."
-                    rows={3}
-                  />
-                </div>
-                
-                <div className="flex justify-end space-x-4">
-                  <Button variant="outline">Save as Draft</Button>
-                  <Button className="bg-gradient-to-r from-primary to-primary-glow">
-                    Post Request
-                  </Button>
-                </div>
+                </form>
               </CardContent>
             </Card>
           </div>
@@ -409,46 +816,128 @@ const Requests = () => {
                 <h2 className="text-2xl font-semibold">My Requests</h2>
                 <p className="text-muted-foreground">Manage your photography requests and proposals</p>
               </div>
-              <Button>
+              <Button onClick={() => {
+                setEditingRequest(null);
+                setShowEditModal(false);
+                setFormData({
+                  projectTitle: '',
+                  category: '',
+                  budgetRange: '',
+                  eventDate: '',
+                  location: '',
+                  projectDescription: '',
+                  requirements: '',
+                  photographerId: '',
+                  bookingTime: '',
+                  durationHours: ''
+                });
+                setActiveTab('create');
+              }}>
                 <Plus className="w-4 h-4 mr-2" />
                 New Request
               </Button>
             </div>
 
-            <div className="grid gap-6">
-              {/* Sample user requests */}
-              <Card className="glass-effect">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-semibold">Birthday Party Photography</h3>
-                      <p className="text-sm text-muted-foreground">Posted 2 days ago</p>
-                    </div>
-                    <Badge className="bg-green-500 text-white">Active</Badge>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Budget:</span>
-                      <p className="font-medium">₹15,000 - ₹25,000</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Date:</span>
-                      <p className="font-medium">March 15, 2024</p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Proposals:</span>
-                      <p className="font-medium">7 received</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex space-x-2 mt-4">
-                    <Button size="sm">View Proposals</Button>
-                    <Button variant="outline" size="sm">Edit Request</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            {isLoadingMyRequests ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading your requests...</span>
+              </div>
+            ) : myRequests.length === 0 ? (
+              <div className="text-center py-12">
+                <MessageCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                <p className="text-lg text-muted-foreground mb-4">You haven't created any requests yet</p>
+                <Button onClick={() => setActiveTab('create')}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Your First Request
+                </Button>
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {myRequests.map((request) => (
+                  <Card key={request.requestId} className="glass-effect">
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <div>
+                          <h3 className="text-lg font-semibold">{request.eventType} Photography</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Posted {request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : 'Recently'}
+                          </p>
+                        </div>
+                        <Badge 
+                          className={
+                            request.status === 'pending' ? 'bg-orange-500 text-white' :
+                            request.status === 'confirmed' ? 'bg-green-500 text-white' :
+                            request.status === 'cancelled' ? 'bg-red-500 text-white' :
+                            'bg-gray-500 text-white'
+                          }
+                        >
+                          {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                        </Badge>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm mb-4">
+                        <div>
+                          <span className="text-muted-foreground">Budget:</span>
+                          <p className="font-medium">{request.budgetRange}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Date:</span>
+                          <p className="font-medium">
+                            {request.eventDate ? new Date(request.eventDate).toLocaleDateString() : 'TBD'}
+                            {request.eventTime && request.eventTime !== 'Not specified' && ` at ${request.eventTime}`}
+                          </p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Location:</span>
+                          <p className="font-medium">{request.eventLocation}</p>
+                        </div>
+                      </div>
+
+                      {request.photographerName && (
+                        <div className="mb-4 p-3 bg-muted/30 rounded-lg">
+                          <span className="text-sm text-muted-foreground">Photographer: </span>
+                          <span className="font-medium">{request.photographerName}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex space-x-2 mt-4">
+                        {request.status === 'pending' && (
+                          <>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditRequest(request)}
+                            >
+                              Edit Request
+                            </Button>
+                            <Button 
+                              size="sm"
+                              onClick={() => {
+                                // TODO: Navigate to proposals page when implemented
+                                toast.info('Proposals feature coming soon!');
+                              }}
+                            >
+                              View Proposals ({request.proposalsCount || 0})
+                            </Button>
+                          </>
+                        )}
+                        {request.status === 'confirmed' && (
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              toast.info('View booking details - coming soon!');
+                            }}
+                          >
+                            View Booking Details
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
