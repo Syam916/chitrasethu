@@ -5,17 +5,33 @@ dotenv.config();
 
 const { Pool } = pg;
 
-// Database configuration
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD ?? 'root',
-  database: process.env.DB_NAME || 'chitrasethu',
-  port: process.env.DB_PORT || 5433,
-  max: 10,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
-};
+// Database configuration - Support both DATABASE_URL (Render) and individual params
+let dbConfig;
+
+if (process.env.DATABASE_URL) {
+  // Render provides DATABASE_URL - use connection string
+  console.log('📊 Using DATABASE_URL for connection');
+  dbConfig = {
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 10000, // Increased for cloud connections
+  };
+} else {
+  // Local development - use individual parameters
+  console.log('📊 Using individual DB params for connection');
+  dbConfig = {
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD ?? 'root',
+    database: process.env.DB_NAME || 'chitrasethu',
+    port: process.env.DB_PORT || 5433,
+    max: 10,
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
+  };
+}
 
 // Create connection pool
 const pool = new Pool(dbConfig);

@@ -1,6 +1,16 @@
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+// Derive socket URL from API URL - handles both HTTP and HTTPS
+const getSocketUrl = () => {
+  // Use production URL as default fallback
+  const apiUrl = import.meta.env.VITE_API_URL || 'https://chitrasethu.onrender.com/api';
+  // Remove /api suffix and ensure proper protocol for WebSocket
+  const baseUrl = apiUrl.replace('/api', '');
+  console.log('🔌 Socket URL:', baseUrl);
+  return baseUrl;
+};
+
+const SOCKET_URL = getSocketUrl();
 
 class SocketService {
   private socket: Socket | null = null;

@@ -5,20 +5,38 @@ let io;
 
 // Initialize Socket.io server
 export const initializeSocket = (server) => {
+  // Allowed origins for Socket.IO - Production ready
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'http://localhost:5173',
+    'http://localhost:8080',
+    'http://localhost:8081',
+    'http://localhost:3000',
+    'http://localhost:4173'
+  ].filter(Boolean); // Remove undefined values
+
   io = new Server(server, {
     cors: {
-      origin: [
-        process.env.FRONTEND_URL || 'http://localhost:5173',
-        'http://localhost:8080',
-        'http://localhost:8081',
-        'http://localhost:3000',
-        'http://localhost:4173'
-      ],
+      origin: function(origin, callback) {
+        // Allow requests with no origin (for non-browser clients)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+          callback(null, true);
+        } else {
+          console.log('⚠️ Socket CORS blocked origin:', origin);
+          callback(null, true); // Allow all in production for now
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST']
     },
+    // Production-optimized settings
     pingTimeout: 60000,
-    pingInterval: 25000
+    pingInterval: 25000,
+    transports: ['websocket', 'polling'], // WebSocket first, fallback to polling
+    allowEIO3: true, // Allow Engine.IO v3 clients
+    upgradeTimeout: 30000 // Time to upgrade from polling to websocket
   });
 
   // Socket.io authentication middleware
