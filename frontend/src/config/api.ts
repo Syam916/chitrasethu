@@ -95,33 +95,34 @@ export const API_ENDPOINTS = {
     RESPOND: (id: number) => `${API_BASE_URL}/collaborations/${id}/respond`,
     UPDATE_RESPONSE_STATUS: (collabId: number, responseId: number) => `${API_BASE_URL}/collaborations/${collabId}/responses/${responseId}/status`,
     WITHDRAW: (id: number) => `${API_BASE_URL}/collaborations/${id}/withdraw`,
+  },
   // Jobs
- JOBS: {
-  LIST: `${API_BASE_URL}/jobs`,
-  CREATE: `${API_BASE_URL}/jobs`,
-  DETAIL: (id: number) => `${API_BASE_URL}/jobs/${id}`,
-  APPLY: (id: number) => `${API_BASE_URL}/jobs/${id}/apply`,
-  ANALYSIS: `${API_BASE_URL}/jobs/analysis`,
-  UPDATE_APPLICATION_STATUS: (applicationId: number) => `${API_BASE_URL}/jobs/applications/${applicationId}/status`,
-},
- // Booking Requests
- BOOKING_REQUESTS: {
-  LIST: `${API_BASE_URL}/photographer/requests`,
-  ACCEPT: (id: number) => `${API_BASE_URL}/photographer/requests/${id}/accept`,
-  DECLINE: (id: number) => `${API_BASE_URL}/photographer/requests/${id}/decline`,
-  REQUEST_INFO: (id: number) => `${API_BASE_URL}/photographer/requests/${id}/request-info`,
-},
- // Photo Booth
- PHOTO_BOOTH: {
-  GENERATE: `${API_BASE_URL}/photographer/photo-booth/generate`,
-  GALLERIES: `${API_BASE_URL}/photographer/photo-booth/galleries`,
-  GALLERY: (id: number) => `${API_BASE_URL}/photographer/photo-booth/${id}`,
-  QR_CODE: (id: number) => `${API_BASE_URL}/photographer/photo-booth/${id}/qr-code`,
-  PUBLIC_GALLERY: (qrCode: string) => `${API_BASE_URL}/photo-booth/${qrCode}`,
-  VERIFY_PASSWORD: (qrCode: string) => `${API_BASE_URL}/photo-booth/${qrCode}/verify-password`,
-  TRACK_ACCESS: (qrCode: string) => `${API_BASE_URL}/photo-booth/${qrCode}/access`,
-  TRACK_DOWNLOAD: (photoId: number) => `${API_BASE_URL}/photo-booth/photos/${photoId}/download`,
-},
+  JOBS: {
+    LIST: `${API_BASE_URL}/jobs`,
+    CREATE: `${API_BASE_URL}/jobs`,
+    DETAIL: (id: number) => `${API_BASE_URL}/jobs/${id}`,
+    APPLY: (id: number) => `${API_BASE_URL}/jobs/${id}/apply`,
+    ANALYSIS: `${API_BASE_URL}/jobs/analysis`,
+    UPDATE_APPLICATION_STATUS: (applicationId: number) => `${API_BASE_URL}/jobs/applications/${applicationId}/status`,
+  },
+  // Booking Requests
+  BOOKING_REQUESTS: {
+    LIST: `${API_BASE_URL}/photographer/requests`,
+    ACCEPT: (id: number) => `${API_BASE_URL}/photographer/requests/${id}/accept`,
+    DECLINE: (id: number) => `${API_BASE_URL}/photographer/requests/${id}/decline`,
+    REQUEST_INFO: (id: number) => `${API_BASE_URL}/photographer/requests/${id}/request-info`,
+  },
+  // Photo Booth
+  PHOTO_BOOTH: {
+    GENERATE: `${API_BASE_URL}/photographer/photo-booth/generate`,
+    GALLERIES: `${API_BASE_URL}/photographer/photo-booth/galleries`,
+    GALLERY: (id: number) => `${API_BASE_URL}/photographer/photo-booth/${id}`,
+    QR_CODE: (id: number) => `${API_BASE_URL}/photographer/photo-booth/${id}/qr-code`,
+    PUBLIC_GALLERY: (qrCode: string) => `${API_BASE_URL}/photo-booth/${qrCode}`,
+    VERIFY_PASSWORD: (qrCode: string) => `${API_BASE_URL}/photo-booth/${qrCode}/verify-password`,
+    TRACK_ACCESS: (qrCode: string) => `${API_BASE_URL}/photo-booth/${qrCode}/access`,
+    TRACK_DOWNLOAD: (photoId: number) => `${API_BASE_URL}/photo-booth/photos/${photoId}/download`,
+  },
   // Mood Boards
   MOODBOARDS: {
     LIST: `${API_BASE_URL}/photographer/moodboards`,

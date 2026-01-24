@@ -22,3 +22,5 @@ PRINT 'Post ID column added to photographer_portfolios successfully!';
 
 
 
+
+
