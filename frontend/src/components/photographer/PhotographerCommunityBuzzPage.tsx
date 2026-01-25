@@ -9,9 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Alert, AlertDescription } from '../ui/alert';
 import { Input } from '../ui/input';
 import PhotographerNavbar from './PhotographerNavbar';
-import { upcomingEvents } from '@/data/dummyData';
 import groupService, { CommunityGroup } from '@/services/group.service';
 import collaborationService, { Collaboration } from '@/services/collaboration.service';
+import eventService, { Event } from '@/services/event.service';
 import { formatDistanceToNow } from 'date-fns';
 import { CreateGroupDialog } from '../groups/CreateGroupDialog';
 import { CreateCollaborationDialog } from '../collaborations/CreateCollaborationDialog';
@@ -41,6 +41,11 @@ const PhotographerCommunityBuzzPage = () => {
   const [collaborationsError, setCollaborationsError] = useState<string | null>(null);
   const [createCollaborationOpen, setCreateCollaborationOpen] = useState(false);
 
+  // Events state
+  const [events, setEvents] = useState<Event[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+
   // Load groups
   useEffect(() => {
     if (activeTab === 'groups') {
@@ -56,6 +61,13 @@ const PhotographerCommunityBuzzPage = () => {
   useEffect(() => {
     if (activeTab === 'collaborations') {
       loadCollaborations();
+    }
+  }, [activeTab]);
+
+  // Load events
+  useEffect(() => {
+    if (activeTab === 'events') {
+      loadEvents();
     }
   }, [activeTab]);
 
@@ -170,6 +182,20 @@ const PhotographerCommunityBuzzPage = () => {
       loadCollaborations(); // Reload collaborations
     } catch (error: any) {
       alert(error.message || 'Failed to submit response');
+    }
+  };
+
+  const loadEvents = async () => {
+    try {
+      setEventsLoading(true);
+      setEventsError(null);
+      const result = await eventService.getAll({ limit: 6, offset: 0 });
+      setEvents(result.events);
+    } catch (error: any) {
+      console.error('Error loading events:', error);
+      setEventsError(error.message || 'Failed to load events');
+    } finally {
+      setEventsLoading(false);
     }
   };
 
@@ -581,46 +607,119 @@ const PhotographerCommunityBuzzPage = () => {
 
           {/* Events */}
           <TabsContent value="events" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {upcomingEvents.slice(0, 6).map((event) => (
-                <Card key={event.id} className="glass-effect overflow-hidden hover:shadow-elegant transition-all duration-300">
-                  <div className="relative aspect-video overflow-hidden">
-                    <img
-                      src={event.image}
-                      alt={event.title}
-                      className="w-full h-full object-cover"
-                    />
-                    <Badge className="absolute top-3 left-3 bg-primary/90">
-                      {event.category}
-                    </Badge>
+            {eventsLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading events...</span>
+              </div>
+            )}
+
+            {eventsError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{eventsError}</AlertDescription>
+              </Alert>
+            )}
+
+            {!eventsLoading && !eventsError && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events.length === 0 ? (
+                  <div className="col-span-full text-center py-12 text-muted-foreground">
+                    <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-semibold mb-2">No live events available</p>
+                    <p>Check back soon for upcoming events!</p>
                   </div>
-                  <CardContent className="p-4 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg leading-tight">{event.title}</CardTitle>
-                      <Badge variant="outline">{event.price}</Badge>
-                    </div>
-                    <div className="space-y-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-3 h-3" />
-                        <span>{event.date} at {event.time}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-3 h-3" />
-                        <span>{event.location}</span>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" className="flex-1">
-                        Join Chat
-                      </Button>
-                      <Button size="sm" variant="outline" className="flex-1">
-                        View Details
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                ) : (
+                  events.map((event) => {
+                    const eventImage = event.images?.[0] || 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800';
+                    const eventDate = new Date(event.eventDate).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    });
+                    const eventTime = event.eventTime 
+                      ? new Date(`2000-01-01T${event.eventTime}`).toLocaleTimeString('en-US', { 
+                          hour: 'numeric', 
+                          minute: '2-digit',
+                          hour12: true 
+                        })
+                      : 'TBD';
+                    const priceRange = event.minBudget > 0 
+                      ? `₹${event.minBudget.toLocaleString()} - ₹${event.maxBudget.toLocaleString()}`
+                      : 'Contact for pricing';
+
+                    return (
+                      <Card key={event.eventId} className="glass-effect overflow-hidden hover:shadow-elegant transition-all duration-300">
+                        <div className="relative aspect-video overflow-hidden">
+                          <img
+                            src={eventImage}
+                            alt={event.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <Badge className="absolute top-3 left-3 bg-primary/90">
+                            {event.categoryName}
+                          </Badge>
+                        </div>
+                        <CardContent className="p-4 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg leading-tight">{event.title}</CardTitle>
+                            <Badge variant="outline">{priceRange}</Badge>
+                          </div>
+                          {event.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2">{event.description}</p>
+                          )}
+                          <div className="space-y-2 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-3 h-3" />
+                              <span>{eventDate} {eventTime !== 'TBD' && `at ${eventTime}`}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <MapPin className="w-3 h-3" />
+                              <span className="truncate">{event.location}</span>
+                            </div>
+                            {event.expectedAttendees && (
+                              <div className="flex items-center gap-2">
+                                <Users className="w-3 h-3" />
+                                <span>{event.expectedAttendees} expected</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              className="flex-1"
+                              onClick={() => {
+                                // TODO: Navigate to event chat room
+                                toast({
+                                  title: 'Event Chat',
+                                  description: 'Event chat feature coming soon!',
+                                });
+                              }}
+                            >
+                              Join Chat
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="flex-1"
+                              onClick={() => {
+                                // TODO: Navigate to event details
+                                toast({
+                                  title: 'Event Details',
+                                  description: 'Event detail page coming soon!',
+                                });
+                              }}
+                            >
+                              View Details
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
+            )}
 
             <Card className="glass-effect">
               <CardHeader>

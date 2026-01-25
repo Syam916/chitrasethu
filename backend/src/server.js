@@ -24,10 +24,11 @@ import jobRoutes from './routes/job.routes.js';
 import bookingRoutes from './routes/booking.routes.js';
 import photoBoothRoutes from './routes/photoBooth.routes.js';
 import moodboardRoutes from './routes/moodboard.routes.js';
+import eventRoutes from './routes/event.routes.js';
 
 const app = express();
 const httpServer = createServer(app);
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 // ============================================================================
 // MIDDLEWARE
@@ -128,6 +129,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api', bookingRoutes);
 app.use('/api', photoBoothRoutes);
 app.use('/api/photographer/moodboards', moodboardRoutes);
+app.use('/api/events', eventRoutes);
 
 // ============================================================================
 // ERROR HANDLING

@@ -6,6 +6,7 @@ import {
   getMyPhotographerProfile,
   addMyPortfolioItems,
   deleteMyPortfolioItem,
+  getPhotographerStats,
 } from '../controllers/photographer.controller.js';
 import {
   followPhotographer,
@@ -21,6 +22,7 @@ const router = express.Router();
 
 router.get('/', optionalAuth, getAllPhotographers);
 router.get('/me', authenticateToken, getMyPhotographerProfile);
+router.get('/me/stats', authenticateToken, getPhotographerStats); // New stats endpoint
 router.get('/:id', optionalAuth, getPhotographerById);
 router.put('/me', authenticateToken, updateMyPhotographerProfile);
 router.post('/me/portfolio', authenticateToken, addMyPortfolioItems);

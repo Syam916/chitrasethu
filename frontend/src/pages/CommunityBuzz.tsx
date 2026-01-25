@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Users, MessageCircle, Heart, Share2, Award, Camera, Calendar, MapPin, Loader2, AlertCircle, Plus, Search, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -9,11 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Alert, AlertDescription } from '../components/ui/alert';
 import { Input } from '../components/ui/input';
 import NavbarIntegrated from '../components/home/NavbarIntegrated';
-import { socialPosts, photographers, upcomingEvents, trendingEvents } from '../data/dummyData';
 import postService, { Post } from '../services/post.service';
 import discussionService, { DiscussionTopic } from '../services/discussion.service';
 import groupService, { CommunityGroup } from '../services/group.service';
 import collaborationService, { Collaboration } from '../services/collaboration.service';
+import eventService, { Event, TrendingEvent } from '../services/event.service';
+import photographerService, { Photographer } from '../services/photographer.service';
 import { formatDistanceToNow } from 'date-fns';
 import { CreateDiscussionDialog } from '../components/discussions/CreateDiscussionDialog';
 import { CreateGroupDialog } from '../components/groups/CreateGroupDialog';
@@ -60,6 +61,20 @@ const CommunityBuzz = () => {
   const [collaborationsError, setCollaborationsError] = useState<string | null>(null);
   const [createCollaborationOpen, setCreateCollaborationOpen] = useState(false);
 
+  // Events state
+  const [events, setEvents] = useState<Event[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+  const [trendingEvents, setTrendingEvents] = useState<TrendingEvent[]>([]);
+  const [trendingLoading, setTrendingLoading] = useState(false);
+
+  // Top contributors state
+  const [topContributors, setTopContributors] = useState<Photographer[]>([]);
+  const [contributorsLoading, setContributorsLoading] = useState(false);
+
+  // Featured posts for highlights
+  const [featuredPosts, setFeaturedPosts] = useState<Post[]>([]);
+
   // Check authentication
   useEffect(() => {
     setIsAuthenticated(authService.isAuthenticated());
@@ -69,6 +84,16 @@ const CommunityBuzz = () => {
   useEffect(() => {
     if (activeTab === 'feed') {
       loadPosts();
+      loadTrendingEvents();
+      loadTopContributors();
+      loadFeaturedPosts();
+    }
+  }, [activeTab]);
+
+  // Load events when events tab is active
+  useEffect(() => {
+    if (activeTab === 'events') {
+      loadEvents();
     }
   }, [activeTab]);
 
@@ -296,33 +321,110 @@ const CommunityBuzz = () => {
     }
   };
 
-  // Community highlights (can be enhanced later with real data)
-  const communityHighlights = [
-    {
-      id: 1,
-      title: 'Photographer of the Month',
-      subtitle: 'Outstanding wedding photography',
-      photographer: photographers[0],
-      type: 'award',
-      image: photographers[0].portfolio[0]
-    },
-    {
-      id: 2,
-      title: 'Trending Technique',
-      subtitle: 'Golden hour portrait tips',
-      views: '12.5K',
-      type: 'tutorial',
-      image: photographers[1].portfolio[0]
-    },
-    {
-      id: 3,
-      title: 'Community Challenge',
-      subtitle: 'Street Photography Contest',
-      participants: 245,
-      type: 'challenge',
-      image: photographers[2].portfolio[0]
+  const loadEvents = async () => {
+    try {
+      setEventsLoading(true);
+      setEventsError(null);
+      const result = await eventService.getAll({ limit: 6, offset: 0 });
+      setEvents(result.events);
+    } catch (error: any) {
+      console.error('Error loading events:', error);
+      setEventsError(error.message || 'Failed to load events');
+    } finally {
+      setEventsLoading(false);
     }
-  ];
+  };
+
+  const loadTrendingEvents = async () => {
+    try {
+      setTrendingLoading(true);
+      const trending = await eventService.getTrending(6);
+      setTrendingEvents(trending);
+    } catch (error: any) {
+      console.error('Error loading trending events:', error);
+      // Don't show error for trending, just use empty array
+      setTrendingEvents([]);
+    } finally {
+      setTrendingLoading(false);
+    }
+  };
+
+  const loadTopContributors = async () => {
+    try {
+      setContributorsLoading(true);
+      // Get photographers sorted by some metric (for now, just get all and sort by rating)
+      const photographers = await photographerService.getAll({});
+      // Sort by rating and total reviews, take top 4
+      const sorted = photographers
+        .sort((a, b) => {
+          const scoreA = (a.rating || 0) * (a.totalReviews || 0);
+          const scoreB = (b.rating || 0) * (b.totalReviews || 0);
+          return scoreB - scoreA;
+        })
+        .slice(0, 4);
+      setTopContributors(sorted);
+    } catch (error: any) {
+      console.error('Error loading top contributors:', error);
+      setTopContributors([]);
+    } finally {
+      setContributorsLoading(false);
+    }
+  };
+
+  const loadFeaturedPosts = async () => {
+    try {
+      // Get featured posts (posts with is_featured = true)
+      const allPosts = await postService.getAll(50, 0);
+      // For now, use top liked posts as featured
+      const featured = allPosts
+        .sort((a, b) => b.likesCount - a.likesCount)
+        .slice(0, 3);
+      setFeaturedPosts(featured);
+    } catch (error: any) {
+      console.error('Error loading featured posts:', error);
+      setFeaturedPosts([]);
+    }
+  };
+
+  // Community highlights from featured posts and top contributors
+  const communityHighlights = useMemo(() => {
+    const highlights = [];
+    
+    if (topContributors.length > 0 && featuredPosts.length > 0) {
+      highlights.push({
+        id: 1,
+        title: 'Photographer of the Month',
+        subtitle: 'Outstanding wedding photography',
+        photographer: topContributors[0],
+        type: 'award',
+        image: featuredPosts[0]?.thumbnailUrl || featuredPosts[0]?.mediaUrls?.[0]?.url || topContributors[0]?.avatarUrl
+      });
+    }
+    
+    if (featuredPosts.length > 1) {
+      highlights.push({
+        id: 2,
+        title: 'Trending Technique',
+        subtitle: 'Golden hour portrait tips',
+        views: `${(featuredPosts[1]?.viewsCount || 0) / 1000}K`,
+        type: 'tutorial',
+        image: featuredPosts[1]?.thumbnailUrl || featuredPosts[1]?.mediaUrls?.[0]?.url
+      });
+    }
+    
+    if (featuredPosts.length > 2) {
+      highlights.push({
+        id: 3,
+        title: 'Community Challenge',
+        subtitle: 'Street Photography Contest',
+        participants: featuredPosts[2]?.likesCount || 245,
+        type: 'challenge',
+        image: featuredPosts[2]?.thumbnailUrl || featuredPosts[2]?.mediaUrls?.[0]?.url
+      });
+    }
+    
+    return highlights;
+  }, [topContributors, featuredPosts]);
 
   const formatTimeAgo = (dateString: string) => {
     try {
@@ -387,27 +489,48 @@ const CommunityBuzz = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {communityHighlights.map((highlight) => (
-                        <div key={highlight.id} className="relative group cursor-pointer">
-                          <div className="aspect-square overflow-hidden rounded-lg">
-                            <img 
-                              src={highlight.image} 
-                              alt={highlight.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
+                    {communityHighlights.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {communityHighlights.map((highlight) => (
+                          <div 
+                            key={highlight.id} 
+                            className="relative group cursor-pointer"
+                            onClick={() => {
+                              if (highlight.photographer) {
+                                navigate(`/photographer/profile/${highlight.photographer.photographerId}`);
+                              }
+                            }}
+                          >
+                            <div className="aspect-square overflow-hidden rounded-lg">
+                              {highlight.image ? (
+                                <img 
+                                  src={highlight.image} 
+                                  alt={highlight.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary-glow/20 flex items-center justify-center">
+                                  <Camera className="w-12 h-12 text-muted-foreground opacity-50" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-lg" />
+                            <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
+                              <Badge className="mb-2 bg-primary/80">
+                                {highlight.type}
+                              </Badge>
+                              <h3 className="font-semibold text-sm">{highlight.title}</h3>
+                              <p className="text-xs opacity-90">{highlight.subtitle}</p>
+                            </div>
                           </div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent rounded-lg" />
-                          <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-                            <Badge className="mb-2 bg-primary/80">
-                              {highlight.type}
-                            </Badge>
-                            <h3 className="font-semibold text-sm">{highlight.title}</h3>
-                            <p className="text-xs opacity-90">{highlight.subtitle}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Award className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                        <p>No highlights available yet</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -532,19 +655,29 @@ const CommunityBuzz = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {trendingEvents.map((event, index) => (
-                        <div key={index} className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-sm">{event.name}</p>
-                            <p className="text-xs text-muted-foreground">{event.posts}K posts</p>
+                    {trendingLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : trendingEvents.length > 0 ? (
+                      <div className="space-y-3">
+                        {trendingEvents.map((event, index) => (
+                          <div key={index} className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-sm">{event.name}</p>
+                              <p className="text-xs text-muted-foreground">{event.posts}K posts</p>
+                            </div>
+                            <Badge variant="secondary" className="text-xs">
+                              {event.trending}
+                            </Badge>
                           </div>
-                          <Badge variant="secondary" className="text-xs">
-                            {event.trending}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No trending data available
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -557,23 +690,36 @@ const CommunityBuzz = () => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {photographers.slice(0, 4).map((photographer, index) => (
-                        <div key={photographer.id} className="flex items-center space-x-3">
-                          <div className="text-xs font-bold text-primary w-6">#{index + 1}</div>
-                          <Avatar className="w-8 h-8">
-                            <AvatarImage src={photographer.image} alt={photographer.name} />
-                            <AvatarFallback className="text-xs bg-gradient-to-br from-primary to-primary-glow text-white">
-                              {photographer.name.split(' ').map(n => n[0]).join('')}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{photographer.name}</p>
-                            <p className="text-xs text-muted-foreground">{photographer.reviews} contributions</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    {contributorsLoading ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : topContributors.length > 0 ? (
+                      <div className="space-y-3">
+                        {topContributors.map((photographer, index) => {
+                          const displayName = photographer.businessName || photographer.fullName || 'Photographer';
+                          return (
+                            <div key={photographer.photographerId} className="flex items-center space-x-3">
+                              <div className="text-xs font-bold text-primary w-6">#{index + 1}</div>
+                              <Avatar className="w-8 h-8">
+                                <AvatarImage src={photographer.avatarUrl} alt={displayName} />
+                                <AvatarFallback className="text-xs bg-gradient-to-br from-primary to-primary-glow text-white">
+                                  {displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{displayName}</p>
+                                <p className="text-xs text-muted-foreground">{photographer.totalReviews || 0} contributions</p>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        No contributors available
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </div>
@@ -711,44 +857,106 @@ const CommunityBuzz = () => {
 
           {/* Events */}
           <TabsContent value="events" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {upcomingEvents.slice(0, 6).map((event) => (
-                <Card key={event.id} className="glass-effect hover:shadow-elegant transition-all duration-300">
-                  <CardContent className="p-0">
-                    <div className="relative aspect-video overflow-hidden">
-                      <img 
-                        src={event.image} 
-                        alt={event.title}
-                        className="w-full h-full object-cover"
-                      />
-                      <Badge className="absolute top-3 left-3 bg-primary/90">
-                        {event.category}
-                      </Badge>
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold mb-2">{event.title}</h3>
-                      <div className="space-y-1 text-sm text-muted-foreground">
-                        <div className="flex items-center space-x-1">
-                          <Calendar className="w-3 h-3" />
-                          <span>{event.date} at {event.time}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <MapPin className="w-3 h-3" />
-                          <span>{event.location}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <Users className="w-3 h-3" />
-                          <span>{event.attendees} attending</span>
-                        </div>
-                      </div>
-                      <Button className="w-full mt-4" size="sm">
-                        Join Event
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            {eventsLoading && (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">Loading events...</span>
+              </div>
+            )}
+
+            {eventsError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{eventsError}</AlertDescription>
+              </Alert>
+            )}
+
+            {!eventsLoading && !eventsError && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {events.length === 0 ? (
+                  <div className="col-span-full text-center py-12 text-muted-foreground">
+                    <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-semibold mb-2">No events available</p>
+                    <p>Check back soon for upcoming events!</p>
+                  </div>
+                ) : (
+                  events.map((event) => {
+                    const eventImage = event.images?.[0] || 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=800';
+                    const eventDate = new Date(event.eventDate).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'short', 
+                      day: 'numeric' 
+                    });
+                    const eventTime = event.eventTime 
+                      ? new Date(`2000-01-01T${event.eventTime}`).toLocaleTimeString('en-US', { 
+                          hour: 'numeric', 
+                          minute: '2-digit',
+                          hour12: true 
+                        })
+                      : 'TBD';
+
+                    return (
+                      <Card key={event.eventId} className="glass-effect hover:shadow-elegant transition-all duration-300">
+                        <CardContent className="p-0">
+                          <div className="relative aspect-video overflow-hidden">
+                            <img 
+                              src={eventImage} 
+                              alt={event.title}
+                              className="w-full h-full object-cover"
+                            />
+                            <Badge className="absolute top-3 left-3 bg-primary/90">
+                              {event.categoryName}
+                            </Badge>
+                          </div>
+                          <div className="p-4">
+                            <h3 className="font-semibold mb-2">{event.title}</h3>
+                            {event.description && (
+                              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                                {event.description}
+                              </p>
+                            )}
+                            <div className="space-y-1 text-sm text-muted-foreground">
+                              <div className="flex items-center space-x-1">
+                                <Calendar className="w-3 h-3" />
+                                <span>{eventDate} {eventTime !== 'TBD' && `at ${eventTime}`}</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <MapPin className="w-3 h-3" />
+                                <span>{event.location}</span>
+                              </div>
+                              {event.expectedAttendees && (
+                                <div className="flex items-center space-x-1">
+                                  <Users className="w-3 h-3" />
+                                  <span>{event.expectedAttendees} attending</span>
+                                </div>
+                              )}
+                              {event.minBudget > 0 && (
+                                <div className="text-primary font-medium">
+                                  ₹{event.minBudget.toLocaleString()} - ₹{event.maxBudget.toLocaleString()}
+                                </div>
+                              )}
+                            </div>
+                            <Button 
+                              className="w-full mt-4" 
+                              size="sm"
+                              onClick={() => {
+                                // TODO: Navigate to event detail page or booking
+                                toast({
+                                  title: 'Event Details',
+                                  description: 'Event detail page coming soon!',
+                                });
+                              }}
+                            >
+                              View Details
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </TabsContent>
 
           {/* Groups */}

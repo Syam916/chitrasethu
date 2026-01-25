@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, TrendingUp, Calendar, DollarSign, MessageSquare as MessageSquareIcon, Plus, Camera, Video } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, TrendingUp, Calendar, DollarSign, MessageSquare as MessageSquareIcon, Plus, Camera, Video, Loader2, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
+import { Alert, AlertDescription } from '../ui/alert';
 import PhotographerNavbar from './PhotographerNavbar';
 import PhotographerLeftSidebar from './PhotographerLeftSidebar';
 import CreatePostDialog from '../home/CreatePostDialog';
 import MainFeed from '../home/MainFeed';
 import authService from '@/services/auth.service';
-import { photographerStats, photographerBookingRequests, photographerBookings } from '@/data/photographerDummyData';
+import photographerService, { PhotographerStats } from '@/services/photographer.service';
+import bookingService, { Booking, BookingRequest } from '@/services/booking.service';
 import defaultAvatar from '@/assets/photographer-1.jpg';
 
 const PhotographerHomePage = () => {
@@ -21,37 +23,80 @@ const PhotographerHomePage = () => {
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
 
+  // Stats state
+  const [stats, setStats] = useState<PhotographerStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  // Bookings state
+  const [upcomingBookings, setUpcomingBookings] = useState<Booking[]>([]);
+  const [bookingsLoading, setBookingsLoading] = useState(true);
+  const [bookingsError, setBookingsError] = useState<string | null>(null);
+
+  // Requests state
+  const [pendingRequests, setPendingRequests] = useState<BookingRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [requestsError, setRequestsError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       navigate('/login');
+    } else {
+      loadStats();
+      loadBookings();
+      loadRequests();
     }
   }, [navigate]);
 
+  const loadStats = async () => {
+    try {
+      setStatsLoading(true);
+      setStatsError(null);
+      const data = await photographerService.getStats();
+      setStats(data);
+    } catch (error: any) {
+      console.error('Error loading stats:', error);
+      setStatsError(error.message || 'Failed to load stats');
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  const loadBookings = async () => {
+    try {
+      setBookingsLoading(true);
+      setBookingsError(null);
+      const result = await bookingService.getBookings('all');
+      const upcoming = result.data.upcoming || [];
+      setUpcomingBookings(upcoming.slice(0, 3)); // Show top 3
+    } catch (error: any) {
+      console.error('Error loading bookings:', error);
+      setBookingsError(error.message || 'Failed to load bookings');
+    } finally {
+      setBookingsLoading(false);
+    }
+  };
+
+  const loadRequests = async () => {
+    try {
+      setRequestsLoading(true);
+      setRequestsError(null);
+      const result = await bookingService.getRequests('pending');
+      const pending = result.data.requests || [];
+      setPendingRequests(pending.slice(0, 3)); // Show top 3
+    } catch (error: any) {
+      console.error('Error loading requests:', error);
+      setRequestsError(error.message || 'Failed to load requests');
+    } finally {
+      setRequestsLoading(false);
+    }
+  };
+
   const handlePostCreated = () => {
+    // Refresh the feed when a new post is created
     setRefreshTrigger(prev => prev + 1);
+    setCreatePostOpen(false);
   };
-
-  const toggleLike = (postId: number) => {
-    setLikedPosts(prev => 
-      prev.includes(postId) 
-        ? prev.filter(id => id !== postId)
-        : [...prev, postId]
-    );
-  };
-
-  const toggleSave = (postId: number) => {
-    setSavedPosts(prev => 
-      prev.includes(postId) 
-        ? prev.filter(id => id !== postId)
-        : [...prev, postId]
-    );
-  };
-
-  // Get upcoming bookings
-  const upcomingBookings = photographerBookings.filter(b => b.status === 'upcoming').slice(0, 3);
-  
-  // Get pending requests
-  const pendingRequests = photographerBookingRequests.filter(r => r.status === 'pending').slice(0, 3);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
@@ -69,46 +114,67 @@ const PhotographerHomePage = () => {
           {/* Main Feed - 60% */}
           <div className="lg:col-span-3">
             {/* Quick Stats Dashboard */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <Card className="glass-effect">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">This Month</p>
-                      <p className="text-2xl font-bold">{photographerStats.currentMonthBookings}</p>
-                      <p className="text-xs text-muted-foreground">Bookings</p>
+            {statsLoading && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i} className="glass-effect">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+            {statsError && (
+              <Alert variant="destructive" className="mb-6">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{statsError}</AlertDescription>
+              </Alert>
+            )}
+            {!statsLoading && !statsError && stats && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <Card className="glass-effect">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">This Month</p>
+                        <p className="text-2xl font-bold">{stats.currentMonthBookings}</p>
+                        <p className="text-xs text-muted-foreground">Bookings</p>
+                      </div>
+                      <Calendar className="w-8 h-8 text-primary" />
                     </div>
-                    <Calendar className="w-8 h-8 text-primary" />
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card className="glass-effect">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Revenue</p>
-                      <p className="text-2xl font-bold">₹{(photographerStats.currentMonthRevenue / 1000).toFixed(0)}K</p>
-                      <p className="text-xs text-muted-foreground">This month</p>
+                <Card className="glass-effect">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Revenue</p>
+                        <p className="text-2xl font-bold">₹{(stats.currentMonthRevenue / 1000).toFixed(0)}K</p>
+                        <p className="text-xs text-muted-foreground">This month</p>
+                      </div>
+                      <DollarSign className="w-8 h-8 text-green-500" />
                     </div>
-                    <DollarSign className="w-8 h-8 text-green-500" />
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
 
-              <Card className="glass-effect">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Pending</p>
-                      <p className="text-2xl font-bold">{photographerStats.pendingRequests}</p>
-                      <p className="text-xs text-muted-foreground">Requests</p>
+                <Card className="glass-effect">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Pending</p>
+                        <p className="text-2xl font-bold">{stats.pendingRequests}</p>
+                        <p className="text-xs text-muted-foreground">Requests</p>
+                      </div>
+                      <MessageSquareIcon className="w-8 h-8 text-orange-500" />
                     </div>
-                    <MessageSquareIcon className="w-8 h-8 text-orange-500" />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
 
             {/* Create Post Button */}
             <div className="mb-6">
@@ -165,19 +231,40 @@ const PhotographerHomePage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {upcomingBookings.map((booking) => (
-                  <div key={booking.bookingId} className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="font-semibold text-sm">{booking.customerName}</p>
-                      <Badge variant="outline" className="text-xs">{booking.eventType}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground mb-1">{booking.eventDate} • {booking.eventTime}</p>
-                    <p className="text-xs text-muted-foreground">{booking.eventLocation}</p>
-                    {booking.daysUntil && (
-                      <p className="text-xs text-primary mt-2">In {booking.daysUntil} days</p>
-                    )}
+                {bookingsLoading && (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
                   </div>
-                ))}
+                )}
+                {bookingsError && (
+                  <Alert variant="destructive" className="mb-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">{bookingsError}</AlertDescription>
+                  </Alert>
+                )}
+                {!bookingsLoading && !bookingsError && upcomingBookings.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    No upcoming bookings
+                  </div>
+                )}
+                {!bookingsLoading && !bookingsError && upcomingBookings.map((booking) => {
+                  const eventDate = booking.eventDate ? new Date(booking.eventDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD';
+                  const daysUntil = booking.daysUntil || null;
+                  
+                  return (
+                    <div key={booking.bookingId} className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="font-semibold text-sm">{booking.customerName}</p>
+                        <Badge variant="outline" className="text-xs">{booking.eventType}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">{eventDate} • {booking.eventTime}</p>
+                      <p className="text-xs text-muted-foreground">{booking.eventLocation}</p>
+                      {daysUntil !== null && (
+                        <p className="text-xs text-primary mt-2">In {daysUntil} days</p>
+                      )}
+                    </div>
+                  );
+                })}
                 <Button 
                   variant="outline" 
                   className="w-full" 
@@ -199,24 +286,44 @@ const PhotographerHomePage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {pendingRequests.map((request) => (
-                  <div key={request.requestId} className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <Avatar className="w-8 h-8">
-                        <AvatarImage src={request.customerAvatar} alt={request.customerName} />
-                        <AvatarFallback className="text-xs">
-                          {request.customerName.split(' ').map(n => n[0]).join('')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">{request.customerName}</p>
-                        <p className="text-xs text-muted-foreground">{request.eventType}</p>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{request.eventDate}</p>
-                    <p className="text-xs text-primary font-medium mt-1">{request.budgetRange}</p>
+                {requestsLoading && (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
                   </div>
-                ))}
+                )}
+                {requestsError && (
+                  <Alert variant="destructive" className="mb-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">{requestsError}</AlertDescription>
+                  </Alert>
+                )}
+                {!requestsLoading && !requestsError && pendingRequests.length === 0 && (
+                  <div className="text-center py-4 text-muted-foreground text-sm">
+                    No pending requests
+                  </div>
+                )}
+                {!requestsLoading && !requestsError && pendingRequests.map((request) => {
+                  const eventDate = request.eventDate ? new Date(request.eventDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD';
+                  
+                  return (
+                    <div key={request.requestId} className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={request.customerAvatar || defaultAvatar} alt={request.customerName} />
+                          <AvatarFallback className="text-xs">
+                            {request.customerName.split(' ').map(n => n[0]).join('')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{request.customerName}</p>
+                          <p className="text-xs text-muted-foreground">{request.eventType}</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{eventDate}</p>
+                      <p className="text-xs text-primary font-medium mt-1">{request.budgetRange}</p>
+                    </div>
+                  );
+                })}
                 <Button 
                   variant="outline" 
                   className="w-full" 
@@ -237,22 +344,37 @@ const PhotographerHomePage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Profile Rating</span>
-                  <span className="font-semibold">{photographerStats.profileRating} ⭐</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total Reviews</span>
-                  <span className="font-semibold">{photographerStats.totalReviews}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Completion Rate</span>
-                  <span className="font-semibold text-green-600">{photographerStats.completionRate}%</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Response Time</span>
-                  <span className="font-semibold">{photographerStats.responseTime}</span>
-                </div>
+                {statsLoading && (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  </div>
+                )}
+                {statsError && (
+                  <Alert variant="destructive" className="mb-2">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">{statsError}</AlertDescription>
+                  </Alert>
+                )}
+                {!statsLoading && !statsError && stats && (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Profile Rating</span>
+                      <span className="font-semibold">{stats.profileRating.toFixed(1)} ⭐</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Total Reviews</span>
+                      <span className="font-semibold">{stats.totalReviews}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Completion Rate</span>
+                      <span className="font-semibold text-green-600">{stats.completionRate}%</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Response Time</span>
+                      <span className="font-semibold">{stats.responseTime}</span>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>

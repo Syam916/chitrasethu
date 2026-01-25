@@ -59,7 +59,41 @@ export interface UpdatePhotographerProfilePayload {
   awards?: string;
 }
 
+export interface PhotographerStats {
+  totalBookings: number;
+  currentMonthBookings: number;
+  currentMonthRevenue: number;
+  pendingRequests: number;
+  activeConversations: number;
+  portfolioViews: number;
+  profileRating: number;
+  totalReviews: number;
+  completionRate: number;
+  responseTime: string;
+}
+
 class PhotographerService {
+  // Get photographer dashboard stats
+  async getStats(): Promise<PhotographerStats> {
+    try {
+      const response = await fetch(API_ENDPOINTS.PHOTOGRAPHERS.ME_STATS, {
+        headers: {
+          ...getAuthHeader(),
+        },
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch photographer stats');
+      }
+
+      return result.data.stats as PhotographerStats;
+    } catch (error: any) {
+      throw new Error(handleApiError(error));
+    }
+  }
+
   // Get current authenticated photographer profile
   async getMyProfile(): Promise<PhotographerDetail> {
     try {

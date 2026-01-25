@@ -1,6 +1,6 @@
 // API Configuration
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://chitrasethu.onrender.com/api';
-// export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 // API Endpoints
 
 export const API_ENDPOINTS = {
@@ -16,6 +16,7 @@ export const API_ENDPOINTS = {
     LIST: `${API_BASE_URL}/photographers`,
     DETAIL: (id: number) => `${API_BASE_URL}/photographers/${id}`,
     ME: `${API_BASE_URL}/photographers/me`,
+    ME_STATS: `${API_BASE_URL}/photographers/me/stats`,
     ME_PORTFOLIO: `${API_BASE_URL}/photographers/me/portfolio`,
     ME_PORTFOLIO_ITEM: (id: number) => `${API_BASE_URL}/photographers/me/portfolio/${id}`,
     FOLLOW: (id: number) => `${API_BASE_URL}/photographers/${id}/follow`,

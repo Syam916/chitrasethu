@@ -10,7 +10,6 @@ import { ScrollArea } from '../ui/scroll-area';
 import NavbarIntegrated from '../home/NavbarIntegrated';
 import authService, { User } from '@/services/auth.service';
 import messageService, { Conversation, Message } from '@/services/message.service';
-import { customerMessages } from '@/data/customerDummyData';
 import useSocket from '@/hooks/useSocket';
 import uploadService from '@/services/upload.service';
 
