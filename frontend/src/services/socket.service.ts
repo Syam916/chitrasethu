@@ -1,12 +1,15 @@
 import { io, Socket } from 'socket.io-client';
+import { API_BASE_URL } from '@/config/api';
 
 // Derive socket URL from API URL - handles both HTTP and HTTPS
 const getSocketUrl = () => {
-  // Use production URL as default fallback
-  const apiUrl = import.meta.env.VITE_API_URL || 'https://chitrasethu.onrender.com/api';
-  // Remove /api suffix and ensure proper protocol for WebSocket
-  const baseUrl = apiUrl.replace('/api', '');
-  console.log('🔌 Socket URL:', baseUrl);
+  // Use the same API_BASE_URL from config to ensure consistency
+  // Remove /api suffix and convert HTTP/HTTPS to WS/WSS
+  const baseUrl = API_BASE_URL.replace('/api', '');
+  
+  // Convert HTTP to WS and HTTPS to WSS for WebSocket connections
+  // Socket.io will handle this automatically, but we ensure the base URL is correct
+  console.log('🔌 Socket URL (base):', baseUrl);
   return baseUrl;
 };
 

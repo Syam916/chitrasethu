@@ -228,3 +228,6 @@ WHERE photographer_id = (
     LIMIT 1
 );
 
+
+
+
