@@ -92,6 +92,12 @@ const PhotographerPublicProfilePage = () => {
           navigate('/profile');
           return;
         }
+        // If profile not found, redirect to edit page to create it
+        if (err.message?.includes('not found') || err.message?.includes('404')) {
+          console.log('Photographer profile not found, redirecting to edit page');
+          navigate('/photographer/profile/edit');
+          return;
+        }
         setError(err.message || 'Failed to load photographer profile');
       } finally {
         setLoading(false);

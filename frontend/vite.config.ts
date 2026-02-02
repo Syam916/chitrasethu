@@ -8,7 +8,7 @@ import { componentTagger } from "lovable-tagger";
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
-    port: 8080,
+    port: 8081,
   },
   // Fix: Move cache outside OneDrive to avoid permission issues
   cacheDir: path.resolve(os.tmpdir(), '.vite-chitrasethu'),

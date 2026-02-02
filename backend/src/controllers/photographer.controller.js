@@ -275,7 +275,20 @@ export const getMyPhotographerProfile = async (req, res) => {
       });
     }
     
-    const result = await query(
+    // Check if user is actually a photographer
+    const userCheck = await query(
+      `SELECT user_type FROM users WHERE user_id = $1`,
+      [userId]
+    );
+    
+    if (userCheck.length === 0 || userCheck[0].user_type !== 'photographer') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Only photographers can access this endpoint'
+      });
+    }
+    
+    let result = await query(
       `SELECT p.*, u.email, up.full_name, up.avatar_url, up.bio, up.phone, up.location, up.city, up.state
        FROM photographers p
        JOIN users u ON p.user_id = u.user_id
@@ -283,6 +296,38 @@ export const getMyPhotographerProfile = async (req, res) => {
        WHERE p.user_id = $1`,
       [userId]
     );
+    
+    // If photographer profile doesn't exist, create it automatically
+    if (result.length === 0) {
+      console.log(`Photographer profile not found for user_id: ${userId}, creating one...`);
+      try {
+        const newPhotographerResult = await query(
+          `INSERT INTO photographers (user_id, specialties, is_active) 
+           VALUES ($1, $2, $3)
+           RETURNING photographer_id`,
+          [userId, JSON.stringify([]), true]
+        );
+        
+        if (newPhotographerResult.length > 0) {
+          // Fetch the newly created profile
+          result = await query(
+            `SELECT p.*, u.email, up.full_name, up.avatar_url, up.bio, up.phone, up.location, up.city, up.state
+             FROM photographers p
+             JOIN users u ON p.user_id = u.user_id
+             JOIN user_profiles up ON u.user_id = up.user_id
+             WHERE p.user_id = $1`,
+            [userId]
+          );
+          console.log(`Successfully created photographer profile with photographer_id: ${newPhotographerResult[0].photographer_id}`);
+        }
+      } catch (createError) {
+        console.error('Error auto-creating photographer profile:', createError);
+        return res.status(500).json({
+          status: 'error',
+          message: 'Failed to create photographer profile. Please contact support.'
+        });
+      }
+    }
     
     if (result.length === 0) {
       return res.status(404).json({

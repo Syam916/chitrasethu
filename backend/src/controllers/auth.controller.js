@@ -56,6 +56,22 @@ export const register = async (req, res) => {
       [userId, fullName, phone || null]
     );
 
+    // If user is a photographer, create photographer profile
+    if (userType === 'photographer') {
+      try {
+        await query(
+          `INSERT INTO photographers (user_id, specialties, is_active) 
+           VALUES ($1, $2, $3)`,
+          [userId, JSON.stringify([]), true]
+        );
+        console.log(`Created photographer profile for user_id: ${userId}`);
+      } catch (photographerError) {
+        console.error('Error creating photographer profile:', photographerError);
+        // Don't fail registration if photographer profile creation fails
+        // The profile can be created later when they access their profile
+      }
+    }
+
     // Generate token
     const token = generateToken(userId, email, userType || 'customer');
 

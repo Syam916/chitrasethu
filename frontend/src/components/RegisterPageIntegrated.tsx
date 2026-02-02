@@ -68,8 +68,15 @@ const RegisterPageIntegrated = () => {
 
       console.log('Registration successful:', response);
       
-      // Redirect to home page
-      navigate('/home');
+      // Redirect based on user type
+      const userType = response?.data?.user?.userType || formData.userType;
+      const normalizedType = typeof userType === 'string' ? userType.toLowerCase() : '';
+      
+      if (normalizedType === 'photographer') {
+        navigate('/photographer/home');
+      } else {
+        navigate('/home');
+      }
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
       console.error('Registration error:', err);
