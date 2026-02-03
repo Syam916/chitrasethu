@@ -109,6 +109,11 @@ class PhotographerService {
         throw new Error(result.message || 'Failed to fetch photographer profile');
       }
 
+      // Check if data and photographer exist
+      if (!result.data || !result.data.photographer) {
+        throw new Error('Photographer profile not found. Please try again.');
+      }
+
       return result.data.photographer as PhotographerDetail;
     } catch (error: any) {
       throw new Error(handleApiError(error));
@@ -191,7 +196,13 @@ class PhotographerService {
         throw new Error(result.message || 'Failed to update photographer profile');
       }
 
-      return result.data.photographer as PhotographerDetail;
+      // Backend may not return the updated photographer data, so fetch it
+      if (result.data && result.data.photographer) {
+        return result.data.photographer as PhotographerDetail;
+      }
+
+      // If backend doesn't return the data, fetch the updated profile
+      return await this.getMyProfile();
     } catch (error: any) {
       throw new Error(handleApiError(error));
     }

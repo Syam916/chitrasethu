@@ -235,6 +235,7 @@ const PhotographerProfileEditPage = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // First update basic user profile
       await authService.updateProfile({
         fullName: basicProfile.fullName || undefined,
         city: basicProfile.city || undefined,
@@ -243,6 +244,19 @@ const PhotographerProfileEditPage = () => {
         avatarUrl,
       });
 
+      // Try to update photographer profile
+      // If photographer record doesn't exist, getMyProfile will create it automatically
+      try {
+        // First ensure photographer profile exists by trying to get it
+        // This will auto-create if it doesn't exist (based on backend logic)
+        await photographerService.getMyProfile();
+      } catch (getError: any) {
+        // If getMyProfile fails, the photographer record might not exist
+        // The backend should create it, but if it doesn't, we'll continue anyway
+        console.warn('Could not fetch photographer profile, will try to update anyway:', getError);
+      }
+
+      // Now update the photographer profile
       await photographerService.updateMyProfile({
         businessName: basicProfile.businessName || undefined,
         specialties: professionalProfile.specialties,
@@ -285,14 +299,25 @@ const PhotographerProfileEditPage = () => {
         certifications: professionalProfile.certifications || undefined,
         awards: professionalProfile.awards || undefined,
       });
+
+      // Reload the profile data to reflect changes
+      try {
+        const updatedProfile = await photographerService.getMyProfile();
+        setPhotographerData(updatedProfile);
+      } catch (reloadError) {
+        // Profile update succeeded but couldn't reload - not critical
+        console.warn('Profile updated but could not reload:', reloadError);
+      }
+
       toast({
         title: 'Profile updated',
-        description: 'Your profile has been saved.',
+        description: 'Your profile has been saved successfully.',
       });
     } catch (err: any) {
+      console.error('Save profile error:', err);
       toast({
         title: 'Save failed',
-        description: err.message || 'Could not save profile',
+        description: err.message || 'Could not save profile. Please try again.',
         variant: 'destructive',
       });
     } finally {

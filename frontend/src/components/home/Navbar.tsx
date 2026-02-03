@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Home, Compass, Calendar, Image, Users, MessageSquare, Bell } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { Button } from '../ui/button';
@@ -6,6 +7,7 @@ import { Input } from '../ui/input';
 import defaultAvatar from '@/assets/photographer-1.jpg';
 
 const Navbar = () => {
+  const navigate = useNavigate();
   const navItems = [
     { name: 'Home', icon: Home },
     { name: 'Explore', icon: Compass },
@@ -20,7 +22,10 @@ const Navbar = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo Section */}
-          <div className="flex items-center space-x-3">
+          <div 
+            className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => navigate('/home')}
+          >
             <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-glow rounded-xl flex items-center justify-center">
               <Image className="w-6 h-6 text-white" />
             </div>

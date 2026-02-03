@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Send, Paperclip, File as FileIcon, Search, Phone, VideoIcon, MoreVertical, Calendar, MapPin, Loader2, Mic, MicOff } from 'lucide-react';
+import { Send, Paperclip, File as FileIcon, Search, Phone, VideoIcon, MoreVertical, Calendar, MapPin, Loader2, Mic, MicOff, ArrowLeft } from 'lucide-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -47,6 +47,8 @@ const PhotographerMessagesPage = () => {
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isMobileView, setIsMobileView] = useState(false);
+  const [showConversationListMobile, setShowConversationListMobile] = useState(true);
   
   const { connected, socketService } = useSocket();
 
@@ -122,7 +124,27 @@ const PhotographerMessagesPage = () => {
     };
     loadUser();
     loadConversations();
-  }, [navigate]);
+
+    // Handle responsive behaviour for mobile/desktop layout
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 1024; // match Tailwind lg breakpoint
+      setIsMobileView(isMobile);
+      if (!isMobile) {
+        // On desktop always show both panes
+        setShowConversationListMobile(false);
+      } else {
+        // On mobile default to conversation list view
+        setShowConversationListMobile(!selectedConversation);
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [navigate, selectedConversation]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -333,6 +355,8 @@ const PhotographerMessagesPage = () => {
       setConversations(data);
       if (data.length > 0 && !selectedConversation) {
         setSelectedConversation(data[0]);
+        // On mobile, default to chat view when we auto-select a conversation
+        setShowConversationListMobile(window.innerWidth < 1024 ? false : false);
       }
     } catch (error) {
       console.error('Failed to load conversations:', error);
@@ -655,9 +679,14 @@ const PhotographerMessagesPage = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       <PhotographerNavbar />
       {/* Lock main content to viewport height so each section scrolls independently */}
-      <div className="container mx-auto px-4 py-4 h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+             <div className="container mx-auto px-4 py-4 h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 h-full overflow-hidden">
-          <div className="lg:col-span-4 xl:col-span-3 h-full overflow-hidden">
+          {/* Conversations List - left panel. On mobile, it becomes its own screen. */}
+          <div
+            className={`lg:col-span-4 xl:col-span-3 h-full overflow-hidden ${
+              isMobileView ? (showConversationListMobile ? 'block' : 'hidden') : 'block'
+            }`}
+          >
             <Card className="glass-effect h-full flex flex-col overflow-hidden">
               <div className="p-4 border-b border-border/50">
                 <h2 className="text-2xl font-semibold mb-4">Messages</h2>
@@ -732,13 +761,27 @@ const PhotographerMessagesPage = () => {
             </Card>
           </div>
 
-          <div className="lg:col-span-8 xl:col-span-6 h-full overflow-hidden">
+          {/* Chat window - center panel. On mobile it replaces the list with a back button. */}
+          <div
+            className={`lg:col-span-8 xl:col-span-6 h-full overflow-hidden ${
+              isMobileView ? (showConversationListMobile ? 'hidden' : 'block') : 'block'
+            }`}
+          >
             <Card className="glass-effect h-full flex flex-col overflow-hidden">
               {selectedConversation ? (
                 <>
                   <div className="p-4 border-b border-border/50">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
+                        {isMobileView && (
+                          <button
+                            type="button"
+                            className="mr-1 rounded-full p-1 hover:bg-muted lg:hidden"
+                            onClick={() => setShowConversationListMobile(true)}
+                          >
+                            <ArrowLeft className="w-5 h-5" />
+                          </button>
+                        )}
                         <Avatar className="w-10 h-10">
                           <AvatarImage src={selectedConversation.participantAvatar || undefined} alt={selectedConversation.participantName} />
                           <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs">

@@ -36,23 +36,23 @@ const HomePage = () => {
       <HeroSection />
       
       {/* Main Layout */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Left Sidebar - 20% */}
-          <div className="lg:col-span-1">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-4 sm:py-6 md:py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 sm:gap-6">
+          {/* Left Sidebar - 20% - Hidden on mobile */}
+          <div className="hidden lg:block lg:col-span-1">
             <LeftSidebar />
           </div>
           
-          {/* Main Feed - 60% */}
+          {/* Main Feed - 60% - Full width on mobile */}
           <div className="lg:col-span-3">
             {/* Create Post Button */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <Button
                 onClick={() => setCreatePostOpen(true)}
-                className="w-full py-6 text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                className="w-full py-4 sm:py-6 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
                 size="lg"
               >
-                <Plus className="w-5 h-5 mr-2" />
+                <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
                 Create New Post
               </Button>
             </div>
@@ -60,8 +60,8 @@ const HomePage = () => {
             <MainFeed refreshTrigger={refreshTrigger} />
           </div>
           
-          {/* Right Sidebar - 20% */}
-          <div className="lg:col-span-1">
+          {/* Right Sidebar - 20% - Hidden on mobile */}
+          <div className="hidden lg:block lg:col-span-1">
             <RightSidebar />
           </div>
         </div>

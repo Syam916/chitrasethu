@@ -7,17 +7,17 @@ import { upcomingEvents, photographers, socialPosts, trendingEvents, collections
 
 const HeroSection = () => {
   return (
-    <section className="bg-gradient-to-r from-muted/30 to-muted/10 py-8">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-playfair font-bold mb-2">Upcoming Events</h2>
-          <p className="text-muted-foreground">Discover and capture memorable moments</p>
+    <section className="bg-gradient-to-r from-muted/30 to-muted/10 py-4 sm:py-6 md:py-8">
+      <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+        <div className="text-center mb-4 sm:mb-8">
+          <h2 className="text-2xl sm:text-3xl font-playfair font-bold mb-2">Upcoming Events</h2>
+          <p className="text-sm sm:text-base text-muted-foreground">Discover and capture memorable moments</p>
         </div>
 
         <ScrollArea className="w-full">
-          <div className="flex space-x-6 pb-4">
+          <div className="flex space-x-3 sm:space-x-6 pb-4">
             {upcomingEvents.map((event) => (
-              <Card key={event.id} className="flex-shrink-0 w-80 glass-effect hover:shadow-elegant transition-all duration-300 group">
+              <Card key={event.id} className="flex-shrink-0 w-[280px] sm:w-80 glass-effect hover:shadow-elegant transition-all duration-300 group">
                 <CardContent className="p-0">
                   <div className="flex">
                     {/* Event Image */}
