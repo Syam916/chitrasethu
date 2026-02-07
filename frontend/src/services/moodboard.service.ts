@@ -322,7 +322,7 @@ class MoodBoardService {
   }
 
   // Search users for collaboration
-  async searchUsers(search: string): Promise<Array<{
+  async searchUsers(search: string, signal?: AbortSignal): Promise<Array<{
     userId: number;
     email: string;
     fullName: string;
@@ -334,6 +334,7 @@ class MoodBoardService {
         headers: {
           ...getAuthHeader(),
         },
+        signal, // Support request cancellation
       });
 
       const result = await response.json();
@@ -344,6 +345,10 @@ class MoodBoardService {
 
       return result.data.users;
     } catch (error: any) {
+      // Re-throw abort errors as-is
+      if (error.name === 'AbortError') {
+        throw error;
+      }
       throw new Error(handleApiError(error));
     }
   }

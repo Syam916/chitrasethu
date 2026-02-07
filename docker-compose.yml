@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  backend:
+    image: 002255676455.dkr.ecr.ap-south-1.amazonaws.com/chitrasethu_backend:latest
+    container_name: chitrasethu_backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    env_file:
+      - .env.backend
+    environment:
+      - NODE_ENV=production
+    networks:
+      - chitrasethu-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health", "||", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: 002255676455.dkr.ecr.ap-south-1.amazonaws.com/chitrasethu_frontend:latest
+    container_name: chitrasethu_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file:
+      - .env.frontend
+    environment:
+      - NODE_ENV=production
+    networks:
+      - chitrasethu-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  chitrasethu-network:
+    driver: bridge
+

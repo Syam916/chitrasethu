@@ -1,0 +1,51 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Ensure Docker is running + Compose available
+        run: |
+          sudo systemctl start docker || true
+          docker --version
+          docker compose version || sudo dnf install -y docker-compose-plugin
+          docker compose version
+          aws --version
+
+      - name: Login to Amazon ECR (uses EC2 IAM Role)
+        run: |
+          aws ecr get-login-password --region ap-south-1 \
+          | docker login --username AWS --password-stdin 002255676455.dkr.ecr.ap-south-1.amazonaws.com
+
+      - name: Prepare deployment directory
+        run: |
+          sudo mkdir -p /opt/chitrasethu
+          sudo cp docker-compose.yml /opt/chitrasethu/
+
+      - name: Deploy containers (pull + restart)
+        run: |
+          cd /opt/chitrasethu
+          sudo docker compose down || true
+          sudo docker compose pull
+          sudo docker compose up -d --remove-orphans
+
+      - name: Cleanup old images
+        run: |
+          sudo docker image prune -f
+
+      - name: Verify deployment
+        run: |
+          echo "Running containers:"
+          sudo docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+          echo "Local checks:"
+          curl -I http://127.0.0.1:3000 || true
+          curl -I http://127.0.0.1:5000 || true

@@ -1,7 +1,9 @@
 // API Configuration
-export const API_BASE_URL = 'https://chitrasethu.onrender.com/api';
+export const API_BASE_URL = 'https://chitrasethu.com:5000/api';
 // export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 // API Endpoints
+
+
 
 export const API_ENDPOINTS = {
   // Authentication
