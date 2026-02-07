@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     image: 002255676455.dkr.ecr.ap-south-1.amazonaws.com/chitrasethu_backend:latest

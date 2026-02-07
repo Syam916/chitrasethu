@@ -47,8 +47,13 @@ jobs:
 
       - name: Login to Amazon ECR (uses EC2 IAM Role)
         run: |
+          # Login as root user (since we use sudo for docker commands)
+          sudo aws ecr get-login-password --region ap-south-1 \
+          | sudo docker login --username AWS --password-stdin 002255676455.dkr.ecr.ap-south-1.amazonaws.com
+          
+          # Also login as current user (for verification)
           aws ecr get-login-password --region ap-south-1 \
-          | docker login --username AWS --password-stdin 002255676455.dkr.ecr.ap-south-1.amazonaws.com
+          | docker login --username AWS --password-stdin 002255676455.dkr.ecr.ap-south-1.amazonaws.com || true
 
       - name: Prepare deployment directory
         run: |
