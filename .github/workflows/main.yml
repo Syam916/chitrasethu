@@ -17,8 +17,32 @@ jobs:
         run: |
           sudo systemctl start docker || true
           docker --version
-          docker compose version || sudo dnf install -y docker-compose-plugin
-          docker compose version
+          
+          # Install Docker Compose if not available
+          if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+            echo "Installing Docker Compose..."
+            COMPOSE_VERSION=$(curl -s https://api.github.com/repos/docker/compose/releases/latest | grep 'tag_name' | cut -d\" -f4)
+            sudo curl -L "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+            sudo chmod +x /usr/local/bin/docker-compose
+            
+            # Also create docker compose V2 alias if needed
+            if ! docker compose version &> /dev/null; then
+              sudo ln -sf /usr/local/bin/docker-compose /usr/libexec/docker/cli-plugins/docker-compose || true
+            fi
+          fi
+          
+          # Verify installation
+          if docker compose version &> /dev/null; then
+            echo "✓ Docker Compose V2 is available"
+            docker compose version
+          elif command -v docker-compose &> /dev/null; then
+            echo "✓ Docker Compose V1 is available"
+            docker-compose --version
+          else
+            echo "ERROR: Docker Compose not found"
+            exit 1
+          fi
+          
           aws --version
 
       - name: Login to Amazon ECR (uses EC2 IAM Role)
@@ -34,9 +58,20 @@ jobs:
       - name: Deploy containers (pull + restart)
         run: |
           cd /opt/chitrasethu
-          sudo docker compose down || true
-          sudo docker compose pull
-          sudo docker compose up -d --remove-orphans
+          
+          # Use docker compose V2 if available, otherwise fallback to V1
+          if docker compose version &> /dev/null; then
+            COMPOSE_CMD="docker compose"
+          elif command -v docker-compose &> /dev/null; then
+            COMPOSE_CMD="docker-compose"
+          else
+            echo "ERROR: Docker Compose not found"
+            exit 1
+          fi
+          
+          sudo $COMPOSE_CMD down || true
+          sudo $COMPOSE_CMD pull
+          sudo $COMPOSE_CMD up -d --remove-orphans
 
       - name: Cleanup old images
         run: |
