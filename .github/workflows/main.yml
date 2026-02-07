@@ -55,6 +55,18 @@ jobs:
           aws ecr get-login-password --region ap-south-1 \
           | sudo docker login --username AWS --password-stdin 002255676455.dkr.ecr.ap-south-1.amazonaws.com
 
+      - name: Check available ECR image tags
+        run: |
+          echo "Checking available tags in ECR repositories..."
+          echo ""
+          echo "Backend repository tags:"
+          aws ecr describe-images --repository-name chitrasethu_backend --region ap-south-1 --query 'imageDetails[*].imageTags[*]' --output text 2>/dev/null || echo "No tags found or repository doesn't exist"
+          echo ""
+          echo "Frontend repository tags:"
+          aws ecr describe-images --repository-name chitrasethu_frontend --region ap-south-1 --query 'imageDetails[*].imageTags[*]' --output text 2>/dev/null || echo "No tags found or repository doesn't exist"
+          echo ""
+          echo "If 'latest' tag is missing, you need to push images to ECR first."
+
       - name: Deploy containers (pull + restart)
         run: |
           # Use docker compose V2 if available, otherwise fallback to V1
@@ -67,9 +79,47 @@ jobs:
             exit 1
           fi
           
+          # Check if latest tag exists, if not try to use any available tag
+          BACKEND_TAG="latest"
+          FRONTEND_TAG="latest"
+          
+          # Try to find any available tag if latest doesn't exist
+          BACKEND_AVAILABLE=$(aws ecr describe-images --repository-name chitrasethu_backend --region ap-south-1 --query 'imageDetails[*].imageTags[*]' --output text 2>/dev/null | head -n1)
+          FRONTEND_AVAILABLE=$(aws ecr describe-images --repository-name chitrasethu_frontend --region ap-south-1 --query 'imageDetails[*].imageTags[*]' --output text 2>/dev/null | head -n1)
+          
+          if [ -z "$BACKEND_AVAILABLE" ] || [ "$BACKEND_AVAILABLE" = "None" ]; then
+            echo "ERROR: No images found in chitrasethu_backend repository"
+            echo "Please push images to ECR first. See instructions below."
+            exit 1
+          fi
+          
+          if [ -z "$FRONTEND_AVAILABLE" ] || [ "$FRONTEND_AVAILABLE" = "None" ]; then
+            echo "ERROR: No images found in chitrasethu_frontend repository"
+            echo "Please push images to ECR first. See instructions below."
+            exit 1
+          fi
+          
+          # Update docker-compose.yml with available tags if latest doesn't exist
+          if ! echo "$BACKEND_AVAILABLE" | grep -q "latest"; then
+            BACKEND_TAG=$(echo "$BACKEND_AVAILABLE" | tr '\t' '\n' | head -n1)
+            echo "Using backend tag: $BACKEND_TAG (latest not found)"
+            sed -i "s|chitrasethu_backend:latest|chitrasethu_backend:$BACKEND_TAG|g" docker-compose.yml
+          fi
+          
+          if ! echo "$FRONTEND_AVAILABLE" | grep -q "latest"; then
+            FRONTEND_TAG=$(echo "$FRONTEND_AVAILABLE" | tr '\t' '\n' | head -n1)
+            echo "Using frontend tag: $FRONTEND_TAG (latest not found)"
+            sed -i "s|chitrasethu_frontend:latest|chitrasethu_frontend:$FRONTEND_TAG|g" docker-compose.yml
+          fi
+          
           # Deploy from current directory
           sudo $COMPOSE_CMD down || true
-          sudo $COMPOSE_CMD pull
+          sudo $COMPOSE_CMD pull || {
+            echo "ERROR: Failed to pull images. Make sure images exist in ECR with the specified tags."
+            echo "Backend tag used: $BACKEND_TAG"
+            echo "Frontend tag used: $FRONTEND_TAG"
+            exit 1
+          }
           sudo $COMPOSE_CMD up -d --remove-orphans
 
       - name: Cleanup old images
