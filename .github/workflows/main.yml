@@ -47,23 +47,16 @@ jobs:
 
       - name: Login to Amazon ECR (uses EC2 IAM Role)
         run: |
-          # Login as root user (since we use sudo for docker commands)
-          sudo aws ecr get-login-password --region ap-south-1 \
-          | sudo docker login --username AWS --password-stdin 002255676455.dkr.ecr.ap-south-1.amazonaws.com
-          
-          # Also login as current user (for verification)
+          # Login as current user
           aws ecr get-login-password --region ap-south-1 \
-          | docker login --username AWS --password-stdin 002255676455.dkr.ecr.ap-south-1.amazonaws.com || true
-
-      - name: Prepare deployment directory
-        run: |
-          sudo mkdir -p /opt/chitrasethu
-          sudo cp docker-compose.yml /opt/chitrasethu/
+          | docker login --username AWS --password-stdin 002255676455.dkr.ecr.ap-south-1.amazonaws.com
+          
+          # Also login as root (for sudo docker commands)
+          aws ecr get-login-password --region ap-south-1 \
+          | sudo docker login --username AWS --password-stdin 002255676455.dkr.ecr.ap-south-1.amazonaws.com
 
       - name: Deploy containers (pull + restart)
         run: |
-          cd /opt/chitrasethu
-          
           # Use docker compose V2 if available, otherwise fallback to V1
           if docker compose version &> /dev/null; then
             COMPOSE_CMD="docker compose"
@@ -74,6 +67,7 @@ jobs:
             exit 1
           fi
           
+          # Deploy from current directory
           sudo $COMPOSE_CMD down || true
           sudo $COMPOSE_CMD pull
           sudo $COMPOSE_CMD up -d --remove-orphans
