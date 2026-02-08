@@ -33,8 +33,10 @@ export interface PhotographerDetail extends Photographer {
   isFollowing?: boolean;
   portfolio: Array<{
     portfolioId: number;
-    imageUrl: string;
+    imageUrl?: string;
+    videoUrl?: string;
     thumbnailUrl?: string;
+    mediaType?: 'image' | 'video';
     title?: string;
     description?: string;
     category?: string;
@@ -209,7 +211,8 @@ class PhotographerService {
   }
 
   async addPortfolioItems(photos: Array<{
-    imageUrl: string;
+    imageUrl?: string;
+    videoUrl?: string;
     thumbnailUrl?: string;
     title?: string;
     description?: string;

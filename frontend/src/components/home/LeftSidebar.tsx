@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Heart, Camera, Cake, Users, Shirt, Star, MapPin, Filter } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
@@ -8,7 +9,32 @@ import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { photographers } from '../../data/dummyData';
 
 const LeftSidebar = () => {
+  const navigate = useNavigate();
   const [selectedFilter, setSelectedFilter] = useState('all');
+  
+  // Map event type IDs to category slugs used in EventPhotos page
+  const getCategorySlug = (typeId: string): string => {
+    const categoryMap: Record<string, string> = {
+      'all': 'all',
+      'wedding': 'wedding',
+      'event': 'events', // Database uses 'events' not 'event'
+      'birthday': 'birthday',
+      'prewedding': 'pre-wedding', // Database uses 'pre-wedding' with hyphen
+      'fashion': 'fashion',
+      'modelling': 'fashion' // Modelling might map to fashion or portrait, using fashion for now
+    };
+    return categoryMap[typeId] || typeId;
+  };
+  
+  const handleCategoryClick = (typeId: string) => {
+    setSelectedFilter(typeId);
+    const categorySlug = getCategorySlug(typeId);
+    if (categorySlug === 'all') {
+      navigate('/event-photos');
+    } else {
+      navigate(`/event-photos?category=${categorySlug}`);
+    }
+  };
 
   const eventTypes = [
     { id: 'all', name: 'All Events', icon: Camera, count: 150 },
@@ -61,7 +87,7 @@ const LeftSidebar = () => {
                   key={type.id}
                   variant={selectedFilter === type.id ? "default" : "ghost"}
                   className="w-full justify-between text-sm"
-                  onClick={() => setSelectedFilter(type.id)}
+                  onClick={() => handleCategoryClick(type.id)}
                 >
                   <div className="flex items-center space-x-2">
                     <IconComponent className="w-4 h-4" />

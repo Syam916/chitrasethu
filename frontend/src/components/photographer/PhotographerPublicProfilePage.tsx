@@ -16,6 +16,8 @@ import {
   UserPlus,
   UserMinus,
   Users,
+  Video,
+  Image,
 } from 'lucide-react';
 import PhotographerNavbar from './PhotographerNavbar';
 import NavbarIntegrated from '../home/NavbarIntegrated';
@@ -237,30 +239,67 @@ const PhotographerPublicProfilePage = () => {
                       Edit Profile
                     </Button>
                   ) : (
-                    <Button
-                      variant={isFollowing ? 'outline' : 'default'}
-                      className={isFollowing ? '' : 'bg-gradient-to-r from-primary to-primary-glow'}
-                      onClick={handleFollow}
-                      disabled={isFollowLoading}
-                    >
-                      {isFollowing ? (
-                        <>
-                          <UserMinus className="w-4 h-4 mr-2" />
-                          Unfollow
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus className="w-4 h-4 mr-2" />
-                          Follow
-                        </>
+                    <>
+                      <Button
+                        variant={isFollowing ? 'outline' : 'default'}
+                        className={isFollowing ? '' : 'bg-gradient-to-r from-primary to-primary-glow'}
+                        onClick={handleFollow}
+                        disabled={isFollowLoading}
+                      >
+                        {isFollowing ? (
+                          <>
+                            <UserMinus className="w-4 h-4 mr-2" />
+                            Unfollow
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-4 h-4 mr-2" />
+                            Follow
+                          </>
+                        )}
+                      </Button>
+                      {isCustomer && (
+                        <Button
+                          className="bg-gradient-to-r from-primary to-primary-glow"
+                          onClick={() => navigate(`/customer/messages?photographerId=${profile.userId}`)}
+                        >
+                          <MessageCircle className="w-4 h-4 mr-2" />
+                          Message
+                        </Button>
                       )}
-                    </Button>
+                    </>
                   )}
-                  <Button className="bg-gradient-to-r from-primary to-primary-glow">
+                  <Button 
+                    className="bg-gradient-to-r from-primary to-primary-glow"
+                    onClick={() => {
+                      if (isOwnProfile) {
+                        // If photographer viewing their own profile, go to bookings page
+                        navigate('/photographer/bookings');
+                      } else if (isCustomer) {
+                        // If customer viewing photographer profile, go to requests page with photographer ID
+                        navigate(`/requests?photographerId=${profile.photographerId}`);
+                      } else {
+                        // If photographer viewing another photographer's profile, go to requests page
+                        navigate(`/requests?photographerId=${profile.photographerId}`);
+                      }
+                    }}
+                  >
                     <Calendar className="w-4 h-4 mr-2" />
                     Check Availability
                   </Button>
-                  <Button variant="outline">
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      if (isCustomer && !isOwnProfile) {
+                        navigate(`/customer/messages?photographerId=${profile.userId}`);
+                      } else {
+                        toast({
+                          title: 'Send Inquiry',
+                          description: 'Inquiry feature coming soon',
+                        });
+                      }
+                    }}
+                  >
                     <Mail className="w-4 h-4 mr-2" />
                     Send Inquiry
                   </Button>
@@ -445,45 +484,120 @@ const PhotographerPublicProfilePage = () => {
           </div>
         </div>
 
-        {/* Portfolio - Instagram Style */}
+        {/* Portfolio - Split into Photos and Videos */}
         {profile.portfolio && profile.portfolio.length > 0 && (
-          <Card className="glass-effect">
-            <CardHeader>
-              <CardTitle>Portfolio</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-1 md:gap-2">
-                {profile.portfolio.map((item) => (
-                  <div
-                    key={item.portfolioId}
-                    className="relative aspect-square bg-muted rounded-lg group overflow-hidden cursor-pointer"
-                    onClick={() => {
-                      setSelectedPortfolioItem(item);
-                      setPortfolioModalOpen(true);
-                    }}
-                  >
-                    <img
-                      src={item.thumbnailUrl || item.imageUrl}
-                      alt={item.title || 'Portfolio image'}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 rounded-lg">
-                      <div className="flex items-center space-x-4 text-white">
-                        <div className="flex items-center space-x-1">
-                          <Heart className="w-5 h-5 fill-current" />
-                          <span className="font-semibold">{item.likesCount || 0}</span>
+          <>
+            {/* Photo Portfolio */}
+            {profile.portfolio.filter(item => !item.mediaType || item.mediaType === 'image').length > 0 && (
+              <Card className="glass-effect">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Image className="w-5 h-5" />
+                    <span>Photo Portfolio</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-1 md:gap-2">
+                    {profile.portfolio
+                      .filter(item => !item.mediaType || item.mediaType === 'image')
+                      .map((item) => (
+                        <div
+                          key={item.portfolioId}
+                          className="relative aspect-square bg-muted rounded-lg group overflow-hidden cursor-pointer"
+                          onClick={() => {
+                            setSelectedPortfolioItem(item);
+                            setPortfolioModalOpen(true);
+                          }}
+                        >
+                          <img
+                            src={item.thumbnailUrl || item.imageUrl}
+                            alt={item.title || 'Portfolio image'}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 rounded-lg">
+                            <div className="flex items-center space-x-4 text-white">
+                              <div className="flex items-center space-x-1">
+                                <Heart className="w-5 h-5 fill-current" />
+                                <span className="font-semibold">{item.likesCount || 0}</span>
+                              </div>
+                              <div className="flex items-center space-x-1">
+                                <MessageCircle className="w-5 h-5 fill-current" />
+                                <span className="font-semibold">{item.commentsCount || 0}</span>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <MessageCircle className="w-5 h-5 fill-current" />
-                          <span className="font-semibold">{item.commentsCount || 0}</span>
-                        </div>
-                      </div>
-                    </div>
+                      ))}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Video Portfolio */}
+            {profile.portfolio.filter(item => item.mediaType === 'video').length > 0 && (
+              <Card className="glass-effect">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Video className="w-5 h-5" />
+                    <span>Video Portfolio</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-1 md:gap-2">
+                    {profile.portfolio
+                      .filter(item => item.mediaType === 'video')
+                      .map((item) => (
+                        <div
+                          key={item.portfolioId}
+                          className="relative aspect-square bg-muted rounded-lg group overflow-hidden cursor-pointer"
+                          onClick={() => {
+                            setSelectedPortfolioItem(item);
+                            setPortfolioModalOpen(true);
+                          }}
+                        >
+                          {item.videoUrl ? (
+                            <>
+                              {item.thumbnailUrl && item.thumbnailUrl !== item.videoUrl ? (
+                                <img
+                                  src={item.thumbnailUrl}
+                                  alt={item.title || 'Portfolio video'}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-900 to-black">
+                                  <Video className="w-16 h-16 text-white opacity-30" />
+                                </div>
+                              )}
+                              {/* Always visible play button overlay */}
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-all rounded-lg">
+                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                  <Video className="w-8 h-8 md:w-10 md:h-10 text-gray-900 fill-current" />
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center bg-black">
+                              <Video className="w-12 h-12 text-white opacity-50" />
+                            </div>
+                          )}
+                          {/* Stats overlay */}
+                          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center space-x-2">
+                              <Heart className="w-4 h-4 fill-current" />
+                              <span className="font-semibold">{item.likesCount || 0}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <MessageCircle className="w-4 h-4 fill-current" />
+                              <span className="font-semibold">{item.commentsCount || 0}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
         )}
 
         {/* Portfolio Detail Modal */}
@@ -492,11 +606,19 @@ const PhotographerPublicProfilePage = () => {
             {selectedPortfolioItem && (
               <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
                 <div className="relative w-full md:w-2/3 bg-black flex items-center justify-center aspect-square md:aspect-auto md:h-[90vh]">
-                  <img
-                    src={selectedPortfolioItem.imageUrl}
-                    alt={selectedPortfolioItem.title || 'Portfolio image'}
-                    className="w-full h-full object-contain"
-                  />
+                  {selectedPortfolioItem.mediaType === 'video' && selectedPortfolioItem.videoUrl ? (
+                    <video
+                      src={selectedPortfolioItem.videoUrl}
+                      controls
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <img
+                      src={selectedPortfolioItem.imageUrl}
+                      alt={selectedPortfolioItem.title || 'Portfolio image'}
+                      className="w-full h-full object-contain"
+                    />
+                  )}
                 </div>
                 <div className="w-full md:w-1/3 flex flex-col border-l border-border bg-background">
                   <div className="p-4 border-b border-border flex items-center space-x-3">

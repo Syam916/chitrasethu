@@ -26,9 +26,11 @@ const Navbar = () => {
             className="flex items-center space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => navigate('/home')}
           >
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-glow rounded-xl flex items-center justify-center">
-              <Image className="w-6 h-6 text-white" />
-            </div>
+            <img 
+              src="/chitrasethu_logo.png" 
+              alt="Chitrasethu Logo" 
+              className="w-10 h-10 object-contain"
+            />
             <h1 className="text-2xl font-playfair font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
               ChitraSethu
             </h1>

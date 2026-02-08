@@ -16,7 +16,8 @@ export const createBookingRequest = async (req, res) => {
       total_amount,
       advance_amount,
       special_requirements,
-      urgency
+      urgency,
+      event_id
     } = req.body;
 
     if (!userId) {
@@ -50,11 +51,26 @@ export const createBookingRequest = async (req, res) => {
     // Calculate pending amount
     const pendingAmount = total_amount - (advance_amount || 0);
 
+    // Verify event exists if event_id is provided
+    if (event_id) {
+      const eventResult = await query(
+        'SELECT event_id FROM events WHERE event_id = $1',
+        [event_id]
+      );
+      if (eventResult.length === 0) {
+        return res.status(404).json({
+          status: 'error',
+          message: 'Event not found'
+        });
+      }
+    }
+
     // Create booking with status 'pending'
     const result = await query(
       `INSERT INTO bookings (
         customer_id,
         photographer_id,
+        event_id,
         booking_date,
         booking_time,
         duration_hours,
@@ -70,11 +86,12 @@ export const createBookingRequest = async (req, res) => {
         special_requirements,
         created_at,
         updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING booking_id`,
       [
         userId,
         photographer_id,
+        event_id || null,
         booking_date,
         booking_time || null,
         duration_hours || null,

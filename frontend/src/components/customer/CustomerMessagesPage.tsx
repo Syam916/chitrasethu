@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Send, Paperclip, Image as ImageIcon, Video, File as FileIcon, Search, Phone, VideoIcon, MoreVertical, Calendar, MapPin, Loader2, Mic, MicOff, ArrowLeft } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -15,6 +15,8 @@ import uploadService from '@/services/upload.service';
 
 const CustomerMessagesPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const photographerIdParam = searchParams.get('photographerId');
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -48,6 +50,60 @@ const CustomerMessagesPage = () => {
   // Socket connection
   const { connected, socketService } = useSocket();
 
+  // Define loadConversations before it's used in useEffect
+  const loadConversations = useCallback(async () => {
+    try {
+      setLoading(true);
+      const data = await messageService.getConversations();
+      setConversations(data);
+      
+      // If photographerId is in query params, try to find and select that conversation
+      if (photographerIdParam && currentUser) {
+        const photographerId = parseInt(photographerIdParam, 10);
+        let conversation = data.find(conv => conv.participantId === photographerId);
+        
+        if (conversation) {
+          // Conversation exists, select it
+          setSelectedConversation(conversation);
+          setShowConversationListMobile(window.innerWidth < 1024 ? false : false);
+          // Clear the query param after selecting
+          setSearchParams({});
+        } else {
+          // Conversation doesn't exist yet, create a temporary conversation object
+          // The conversationId format is: conv_{minUserId}_{maxUserId}
+          const minId = Math.min(currentUser.userId, photographerId);
+          const maxId = Math.max(currentUser.userId, photographerId);
+          const tempConversationId = `conv_${minId}_${maxId}`;
+          
+          // Create a temporary conversation object
+          // We'll need to fetch the photographer's name and avatar
+          conversation = {
+            conversationId: tempConversationId,
+            participantId: photographerId,
+            participantName: 'Photographer', // Will be updated when we load messages
+            participantAvatar: null,
+            lastMessage: '',
+            timestamp: new Date().toISOString(),
+            unreadCount: 0,
+            online: false
+          };
+          
+          setSelectedConversation(conversation);
+          setShowConversationListMobile(window.innerWidth < 1024 ? false : false);
+          // Clear the query param after selecting
+          setSearchParams({});
+        }
+      } else if (data.length > 0 && !selectedConversation) {
+        setSelectedConversation(data[0]);
+        setShowConversationListMobile(window.innerWidth < 1024 ? false : false);
+      }
+    } catch (error) {
+      console.error('Failed to load conversations:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [photographerIdParam, currentUser, selectedConversation, setSearchParams]);
+
   useEffect(() => {
     if (!authService.isAuthenticated()) {
       navigate('/login');
@@ -68,7 +124,6 @@ const CustomerMessagesPage = () => {
       }
     };
     loadUser();
-    loadConversations();
 
     const handleResize = () => {
       const isMobile = window.innerWidth < 1024; // Tailwind lg breakpoint
@@ -87,6 +142,13 @@ const CustomerMessagesPage = () => {
       window.removeEventListener('resize', handleResize);
     };
   }, [navigate, selectedConversation]);
+
+  // Load conversations when currentUser is available (needed for creating temp conversations)
+  useEffect(() => {
+    if (currentUser) {
+      loadConversations();
+    }
+  }, [currentUser, loadConversations]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -243,22 +305,6 @@ const CustomerMessagesPage = () => {
       }
     };
   }, [selectedConversation]);
-
-  const loadConversations = async () => {
-    try {
-      setLoading(true);
-      const data = await messageService.getConversations();
-      setConversations(data);
-      if (data.length > 0 && !selectedConversation) {
-        setSelectedConversation(data[0]);
-        setShowConversationListMobile(window.innerWidth < 1024 ? false : false);
-      }
-    } catch (error) {
-      console.error('Failed to load conversations:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const loadMessages = async (conversationId: string) => {
     try {

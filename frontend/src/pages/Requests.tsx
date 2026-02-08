@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Clock, MapPin, Calendar, Camera, Users, DollarSign, MessageCircle, Star, Filter, Loader2, Edit } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -19,10 +20,12 @@ import avatarFour from '@/assets/prewedding-1.jpg';
 import bookingService from '@/services/booking.service';
 import photographerService from '@/services/photographer.service';
 import authService from '@/services/auth.service';
-import { useNavigate } from 'react-router-dom';
+import eventService from '@/services/event.service';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 const Requests = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'browse' | 'create' | 'my-requests'>('browse');
   const [selectedCategory, setSelectedCategory] = useState('all');
   
@@ -49,6 +52,8 @@ const Requests = () => {
   const [isLoadingMyRequests, setIsLoadingMyRequests] = useState(false);
   const [editingRequest, setEditingRequest] = useState<any | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [eventLoaded, setEventLoaded] = useState(false);
+  const [loadedEventTitle, setLoadedEventTitle] = useState<string | null>(null);
 
   // Mock requests data
   const requests = [
@@ -118,6 +123,16 @@ const Requests = () => {
     }
   ];
 
+  // Check for photographerId or eventId in URL and switch to create tab
+  useEffect(() => {
+    const photographerId = searchParams.get('photographerId');
+    const eventId = searchParams.get('eventId');
+    if (photographerId || eventId) {
+      // Switch to create tab if photographerId or eventId is provided
+      setActiveTab('create');
+    }
+  }, [searchParams]);
+
   // Load photographers when create tab is active
   useEffect(() => {
     if (activeTab === 'create') {
@@ -131,6 +146,114 @@ const Requests = () => {
       loadMyRequests();
     }
   }, [activeTab]);
+
+  // Set photographerId from URL after photographers are loaded
+  useEffect(() => {
+    const photographerIdFromUrl = searchParams.get('photographerId');
+    if (photographerIdFromUrl) {
+      if (photographers.length > 0) {
+        // Find the photographer in the list - try both string and number comparison
+        const photographer = photographers.find(
+          (p) => p.photographerId.toString() === photographerIdFromUrl || 
+                 p.photographerId === parseInt(photographerIdFromUrl, 10)
+        );
+        
+        if (photographer) {
+          // Set the photographerId as string to match Select component value format
+          const photographerIdString = photographer.photographerId.toString();
+          setFormData(prev => {
+            // Only update if it's different to avoid unnecessary re-renders
+            if (prev.photographerId !== photographerIdString) {
+              return {
+                ...prev,
+                photographerId: photographerIdString
+              };
+            }
+            return prev;
+          });
+        } else {
+          // Photographer not found in list, but keep the ID from URL
+          // This handles cases where photographer might not be in the filtered list
+          setFormData(prev => {
+            if (prev.photographerId !== photographerIdFromUrl) {
+              return {
+                ...prev,
+                photographerId: photographerIdFromUrl
+              };
+            }
+            return prev;
+          });
+        }
+      } else {
+        // Photographers not loaded yet, but set the ID from URL so it's ready when they load
+        setFormData(prev => {
+          if (prev.photographerId !== photographerIdFromUrl) {
+            return {
+              ...prev,
+              photographerId: photographerIdFromUrl
+            };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [photographers, searchParams]);
+
+  // Fetch and pre-fill event data if eventId is in URL
+  useEffect(() => {
+    const eventId = searchParams.get('eventId');
+    if (eventId && activeTab === 'create') {
+      const loadEventData = async () => {
+        try {
+          const event = await eventService.getById(parseInt(eventId));
+          
+          // Pre-fill form with event data
+          setFormData(prev => ({
+            ...prev,
+            projectTitle: event.title || prev.projectTitle,
+            category: event.categoryName || prev.category,
+            eventDate: event.eventDate ? new Date(event.eventDate).toISOString().split('T')[0] : prev.eventDate,
+            location: event.location || event.venueName || `${event.city || ''}${event.city && event.state ? ', ' : ''}${event.state || ''}` || prev.location,
+            projectDescription: event.description || prev.projectDescription,
+            requirements: event.requirements || prev.requirements,
+            bookingTime: event.eventTime || prev.bookingTime,
+          }));
+
+          // Set budget range if available
+          if (event.minBudget && event.maxBudget) {
+            const budgetRange = `₹${event.minBudget.toLocaleString()} - ₹${event.maxBudget.toLocaleString()}`;
+            setFormData(prev => ({
+              ...prev,
+              budgetRange: budgetRange,
+            }));
+          } else if (event.budgetRange) {
+            setFormData(prev => ({
+              ...prev,
+              budgetRange: event.budgetRange,
+            }));
+          }
+
+          // Set loaded state
+          setEventLoaded(true);
+          setLoadedEventTitle(event.title);
+
+          // Show success message
+          toast.success(`Event "${event.title}" loaded! Form pre-filled with event details.`);
+        } catch (error: any) {
+          console.error('Failed to load event data:', error);
+          toast.error('Failed to load event details. You can still create a booking request manually.');
+          setEventLoaded(false);
+          setLoadedEventTitle(null);
+        }
+      };
+
+      loadEventData();
+    } else {
+      // Reset when eventId is removed from URL
+      setEventLoaded(false);
+      setLoadedEventTitle(null);
+    }
+  }, [searchParams, activeTab]);
 
   const loadPhotographers = async () => {
     try {
@@ -201,6 +324,7 @@ const Requests = () => {
       setIsSubmitting(true);
       
       const totalAmount = parseBudgetRange(formData.budgetRange);
+      const eventId = searchParams.get('eventId');
       
       await bookingService.createRequest({
         photographer_id: parseInt(formData.photographerId),
@@ -211,12 +335,14 @@ const Requests = () => {
         location: formData.location,
         venue_name: formData.location,
         total_amount: totalAmount,
-        special_requirements: `${formData.projectDescription}\n\nRequirements: ${formData.requirements}`.trim()
+        special_requirements: `${formData.projectDescription}\n\nRequirements: ${formData.requirements}`.trim(),
+        event_id: eventId ? parseInt(eventId) : undefined
       });
 
       toast.success('Booking request posted successfully!');
       
-      // Reset form
+      // Reset form but preserve photographerId from URL if present
+      const photographerIdFromUrl = searchParams.get('photographerId') || '';
       setFormData({
         projectTitle: '',
         category: '',
@@ -225,7 +351,7 @@ const Requests = () => {
         location: '',
         projectDescription: '',
         requirements: '',
-        photographerId: '',
+        photographerId: photographerIdFromUrl,
         bookingTime: '',
         durationHours: ''
       });
@@ -314,6 +440,16 @@ const Requests = () => {
       case 'medium': return 'bg-yellow-500';
       case 'low': return 'bg-green-500';
       default: return 'bg-gray-500';
+    }
+  };
+
+  // Format request age (time ago)
+  const formatRequestAge = (dateString: string | null) => {
+    if (!dateString) return 'Recently';
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch {
+      return 'Recently';
     }
   };
 
@@ -470,8 +606,8 @@ const Requests = () => {
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <h3 className="font-semibold">{request.client}</h3>
-                            <p className="text-sm text-muted-foreground">{request.postedTime}</p>
+                            <h3 className="font-semibold text-sm sm:text-base">{request.client}</h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">{request.postedTime}</p>
                           </div>
                         </div>
                         
@@ -566,6 +702,31 @@ const Requests = () => {
                 </p>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Event Pre-fill Banner */}
+                {eventLoaded && loadedEventTitle && !editingRequest && (
+                  <div className="p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-5 h-5 text-primary" />
+                      <div>
+                        <p className="font-semibold text-sm">Form pre-filled from event</p>
+                        <p className="text-xs text-muted-foreground">Event: {loadedEventTitle}</p>
+                      </div>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        navigate('/requests');
+                        setEventLoaded(false);
+                        setLoadedEventTitle(null);
+                      }}
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
+                
                 <form onSubmit={editingRequest ? handleUpdateRequest : handleSubmit}>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {!editingRequest && (
@@ -580,16 +741,16 @@ const Requests = () => {
                           </div>
                         ) : (
                           <Select
-                            value={formData.photographerId}
+                            value={formData.photographerId || undefined}
                             onValueChange={(value) => handleInputChange('photographerId', value)}
                             required
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="Select a photographer" />
+                              <SelectValue placeholder={formData.photographerId ? undefined : "Select a photographer"} />
                             </SelectTrigger>
                             <SelectContent>
                               {photographers.length === 0 ? (
-                                <SelectItem value="" disabled>No photographers available</SelectItem>
+                                <div className="px-2 py-1.5 text-sm text-muted-foreground">No photographers available</div>
                               ) : (
                                 photographers.map((photographer) => (
                                   <SelectItem key={photographer.photographerId} value={photographer.photographerId.toString()}>
@@ -742,6 +903,7 @@ const Requests = () => {
                       type="button"
                       variant="outline"
                       onClick={() => {
+                        const photographerIdFromUrl = searchParams.get('photographerId') || '';
                         setFormData({
                           projectTitle: '',
                           category: '',
@@ -750,7 +912,7 @@ const Requests = () => {
                           location: '',
                           projectDescription: '',
                           requirements: '',
-                          photographerId: '',
+                          photographerId: photographerIdFromUrl,
                           bookingTime: '',
                           durationHours: ''
                         });
@@ -860,8 +1022,8 @@ const Requests = () => {
                       <div className="flex items-center justify-between mb-4">
                         <div>
                           <h3 className="text-lg font-semibold">{request.eventType} Photography</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Posted {request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : 'Recently'}
+                          <p className="text-xs sm:text-sm text-muted-foreground">
+                            Posted {formatRequestAge(request.requestedAt)}
                           </p>
                         </div>
                         <Badge 

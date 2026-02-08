@@ -107,7 +107,11 @@ const RegisterPageIntegrated = () => {
         <div className="relative z-10 flex flex-col justify-center items-start p-12 text-foreground">
           <div>
             <div className="inline-flex items-center mb-6">
-              <Camera className="w-8 h-8 text-primary mr-3" />
+              <img 
+                src="/chitrasethu_logo.png" 
+                alt="Chitrasethu Logo" 
+                className="w-8 h-8 mr-3 object-contain"
+              />
               <span className="text-3xl font-playfair font-bold gradient-text">Chitrasethu</span>
             </div>
             

@@ -162,6 +162,111 @@ export const getOptimizedUrl = async (req, res) => {
 };
 
 /**
+ * Upload single video
+ */
+export const uploadVideo = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'No file uploaded'
+      });
+    }
+
+    // Check if Cloudinary is configured
+    if (!cloudinaryService.isConfigured()) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Video upload service is not configured'
+      });
+    }
+
+    const userId = req.user.userId;
+    const { folder } = req.body;
+
+    // Determine folder based on context
+    const uploadFolder = folder || `chitrasethu/videos/user_${userId}`;
+
+    // Upload to Cloudinary as video
+    const uploadResult = await cloudinaryService.uploadFile(
+      req.file.buffer,
+      { 
+        folder: uploadFolder,
+        resource_type: 'video'
+      }
+    );
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Video uploaded successfully',
+      data: {
+        video: uploadResult
+      }
+    });
+  } catch (error) {
+    console.error('Video upload error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to upload video',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Upload multiple videos
+ */
+export const uploadMultipleVideos = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'No files uploaded'
+      });
+    }
+
+    // Check if Cloudinary is configured
+    if (!cloudinaryService.isConfigured()) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'Video upload service is not configured'
+      });
+    }
+
+    const userId = req.user.userId;
+    const { folder } = req.body;
+
+    // Determine folder
+    const uploadFolder = folder || `chitrasethu/videos/user_${userId}`;
+
+    // Upload all files as videos
+    const uploadPromises = req.files.map(file => 
+      cloudinaryService.uploadFile(file.buffer, {
+        folder: uploadFolder,
+        resource_type: 'video'
+      })
+    );
+
+    const uploadResults = await Promise.all(uploadPromises);
+
+    res.status(200).json({
+      status: 'success',
+      message: `${uploadResults.length} videos uploaded successfully`,
+      data: {
+        videos: uploadResults
+      }
+    });
+  } catch (error) {
+    console.error('Video upload error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to upload videos',
+      error: error.message
+    });
+  }
+};
+
+/**
  * Upload a generic attachment (image/video/document)
  */
 export const uploadAttachment = async (req, res) => {

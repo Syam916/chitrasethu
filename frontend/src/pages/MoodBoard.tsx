@@ -118,63 +118,66 @@ const MoodBoard = () => {
       <NavbarIntegrated />
       
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary/10 to-primary-glow/10 py-16">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl font-playfair font-bold mb-4">
+      <div className="bg-gradient-to-r from-primary/10 to-primary-glow/10 py-6 sm:py-10 md:py-16">
+        <div className="container mx-auto px-3 sm:px-4 md:px-6 text-center">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-playfair font-bold mb-2 sm:mb-4">
             Mood <span className="gradient-text">Board</span>
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base md:text-xl text-muted-foreground mb-4 sm:mb-6 md:mb-8 max-w-2xl mx-auto px-2">
             Create inspiring mood boards for your photography projects. Save, organize, and share visual inspiration.
           </p>
           
           {/* Search Bar */}
-          <div className="max-w-2xl mx-auto relative mb-6">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              placeholder="Search mood boards and inspirations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-12 pr-12 h-14 text-lg glass-effect border-primary/20 focus:border-primary"
-            />
-            <Button size="lg" className="absolute right-2 top-2">
-              <Filter className="w-4 h-4 mr-2" />
-              Filter
-            </Button>
+          <div className="max-w-2xl mx-auto relative mb-4 sm:mb-6 px-2">
+            <div className="relative">
+              <Search className="absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground z-10" />
+              <Input
+                placeholder="Search mood boards..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 sm:pl-12 pr-20 sm:pr-28 h-10 sm:h-12 md:h-14 text-sm sm:text-base md:text-lg glass-effect border-primary/20 focus:border-primary"
+              />
+              <Button size="sm" className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 h-7 sm:h-8 md:h-10 px-2 sm:px-3 text-xs sm:text-sm">
+                <Filter className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                <span className="hidden sm:inline">Filter</span>
+              </Button>
+            </div>
           </div>
           
           {isPhotographer && (
             <Button 
-              size="lg" 
-              className="bg-gradient-to-r from-primary to-primary-glow"
+              size="sm"
+              className="bg-gradient-to-r from-primary to-primary-glow text-xs sm:text-sm md:text-base h-9 sm:h-10 md:h-11 px-4 sm:px-6"
               onClick={() => navigate('/photographer/mood-boards/create')}
             >
-              <Plus className="w-5 h-5 mr-2" />
-              Create New Board
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5 sm:mr-2" />
+              <span className="hidden sm:inline">Create New Board</span>
+              <span className="sm:hidden">Create</span>
             </Button>
           )}
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
+      <div className="container mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 md:gap-8">
           {/* Sidebar */}
-          <div className="lg:w-80">
+          <div className="w-full lg:w-80 order-2 lg:order-1">
             {/* Categories */}
-            <Card className="glass-effect mb-6">
-              <CardHeader>
-                <CardTitle className="text-lg">Categories</CardTitle>
+            <Card className="glass-effect mb-4 sm:mb-6">
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Categories</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
+              <CardContent className="p-3 sm:p-6 pt-0">
+                <div className="space-y-1.5 sm:space-y-2">
                   {categories.map((category) => (
                     <Button
                       key={category.id}
                       variant={selectedCategory === category.id ? "default" : "ghost"}
-                      className="w-full justify-between"
+                      className="w-full justify-between text-xs sm:text-sm h-9 sm:h-10"
                       onClick={() => setSelectedCategory(category.id)}
                     >
-                      <span>{category.name}</span>
-                      <Badge variant="secondary" className="text-xs">
+                      <span className="truncate">{category.name}</span>
+                      <Badge variant="secondary" className="text-[10px] sm:text-xs ml-2 flex-shrink-0">
                         {category.count}
                       </Badge>
                     </Button>
@@ -253,21 +256,26 @@ const MoodBoard = () => {
           </div>
 
           {/* Main Content */}
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-semibold">
+          <div className="flex-1 order-1 lg:order-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 sm:mb-6">
+              <div className="min-w-0">
+                <h2 className="text-xl sm:text-2xl font-semibold mb-1">
                   Inspiration Gallery
                 </h2>
-                <p className="text-muted-foreground">
+                <p className="text-xs sm:text-sm text-muted-foreground">
                   {isLoading ? 'Loading...' : `${filteredItems.length} items • Discover and save inspiring photography`}
                 </p>
               </div>
               
               {isPhotographer && (
-                <Button onClick={() => navigate('/photographer/mood-boards/create')}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Upload Image
+                <Button 
+                  size="sm"
+                  className="w-full sm:w-auto text-xs sm:text-sm h-9 sm:h-10"
+                  onClick={() => navigate('/photographer/mood-boards/create')}
+                >
+                  <Plus className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Upload Image</span>
+                  <span className="sm:hidden">Upload</span>
                 </Button>
               )}
             </div>
@@ -293,7 +301,7 @@ const MoodBoard = () => {
 
             {/* Masonry Grid */}
             {!isLoading && !error && (
-              <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-6 space-y-6">
+              <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-3 sm:gap-4 md:gap-6 space-y-3 sm:space-y-4 md:space-y-6">
                 {filteredItems.map((item) => (
                   <div key={item.id} className="break-inside-avoid">
                     <Card className="glass-effect hover:shadow-elegant transition-all duration-300 group overflow-hidden cursor-pointer"
@@ -377,19 +385,19 @@ const MoodBoard = () => {
                         </div>
                         
                         {/* Content */}
-                        <div className="p-4">
-                          <h3 className="font-medium mb-2 line-clamp-2">{item.title}</h3>
-                          <p className="text-sm text-muted-foreground mb-3">by {item.author}</p>
+                        <div className="p-3 sm:p-4">
+                          <h3 className="font-medium text-sm sm:text-base mb-1 sm:mb-2 line-clamp-2">{item.title}</h3>
+                          <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3">by {item.author}</p>
                           
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center space-x-2 sm:space-x-3 text-[10px] sm:text-xs text-muted-foreground">
                               <div className="flex items-center space-x-1">
-                                <Heart className="w-3 h-3 text-red-500" />
+                                <Heart className="w-3 h-3 text-red-500 flex-shrink-0" />
                                 <span>{item.likes}</span>
                               </div>
                               {item.views !== undefined && (
                                 <div className="flex items-center space-x-1">
-                                  <Eye className="w-3 h-3" />
+                                  <Eye className="w-3 h-3 flex-shrink-0" />
                                   <span>{item.views}</span>
                                 </div>
                               )}
@@ -398,13 +406,14 @@ const MoodBoard = () => {
                             <Button
                               variant={savedItems.includes(item.id) ? "default" : "outline"}
                               size="sm"
+                              className="text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3 flex-shrink-0"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 toggleSave(item.id);
                               }}
                             >
-                              <Bookmark className="w-4 h-4 mr-1" />
-                              {savedItems.includes(item.id) ? 'Saved' : 'Save'}
+                              <Bookmark className="w-3 h-3 sm:w-4 sm:h-4 sm:mr-1" />
+                              <span className="hidden sm:inline">{savedItems.includes(item.id) ? 'Saved' : 'Save'}</span>
                             </Button>
                           </div>
                         </div>

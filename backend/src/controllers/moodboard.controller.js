@@ -1046,23 +1046,43 @@ export const searchUsersForCollaboration = async (req, res) => {
     }
 
     const searchTerm = `%${search.trim()}%`;
+    
+    // Log the search for debugging
+    console.log(`[Search Users] Searching for: "${search.trim()}", userId: ${userId}`);
 
+    // Use LEFT JOIN to include users even if they don't have profiles
+    // Search by both full_name and email, handling null values properly
+    // Also LEFT JOIN photographers to get photographer_id for photographers
+    // Important: Only join photographers where is_active = true to get correct photographer_id
     const users = await query(
       `SELECT 
          u.user_id,
          u.email,
          u.user_type,
-         up.full_name,
-         up.avatar_url
+         COALESCE(up.full_name, u.email) as full_name,
+         up.avatar_url,
+         p.photographer_id
        FROM users u
-       JOIN user_profiles up ON u.user_id = up.user_id
+       LEFT JOIN user_profiles up ON u.user_id = up.user_id
+       LEFT JOIN photographers p ON u.user_id = p.user_id AND p.is_active = true
        WHERE u.is_active = true 
          AND u.user_id != $1
-         AND (up.full_name ILIKE $2 OR u.email ILIKE $2)
-       ORDER BY up.full_name ASC
+         AND (
+           (up.full_name IS NOT NULL AND up.full_name ILIKE $2)
+           OR u.email ILIKE $2
+         )
+       ORDER BY 
+         CASE 
+           WHEN up.full_name IS NOT NULL AND up.full_name ILIKE $2 THEN 1
+           WHEN u.email ILIKE $2 THEN 2
+           ELSE 3
+         END,
+         COALESCE(up.full_name, u.email) ASC
        LIMIT 20`,
       [userId, searchTerm]
     );
+
+    console.log(`[Search Users] Found ${users.length} users matching "${search.trim()}"`);
 
     res.status(200).json({
       status: 'success',
@@ -1070,9 +1090,10 @@ export const searchUsersForCollaboration = async (req, res) => {
         users: users.map(u => ({
           userId: u.user_id,
           email: u.email,
-          fullName: u.full_name,
-          avatarUrl: u.avatar_url,
-          userType: u.user_type
+          fullName: u.full_name || u.email, // Fallback to email if full_name is null
+          avatarUrl: u.avatar_url || null,
+          userType: u.user_type,
+          photographerId: u.photographer_id || null // Include photographerId for photographers
         }))
       }
     });

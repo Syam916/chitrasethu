@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Image, Layout, Users, Camera, FileEdit, Eye, Plus, Calendar, MessageSquare, Briefcase } from 'lucide-react';
+import { User, Image, Layout, Users, Camera, FileEdit, Eye, Plus, Calendar, MessageSquare, Briefcase, MessageCircle } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -37,8 +37,9 @@ const PhotographerLeftSidebar = () => {
       title: 'Community',
       icon: Users,
       items: [
-        { name: 'My Groups', path: '/photographer/community', icon: Users },
-        { name: 'Find Collaborations', path: '/photographer/community/collaborations', icon: Users }
+        { name: 'Community Buzz', path: '/photographer/community-buzz', icon: MessageCircle },
+        { name: 'My Groups', path: '/photographer/community-buzz?tab=groups', icon: Users },
+        { name: 'Find Collaborations', path: '/photographer/community-buzz?tab=collaborations', icon: Users }
       ]
     }
   ];

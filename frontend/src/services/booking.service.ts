@@ -42,6 +42,7 @@ export interface CreateBookingRequestData {
   advance_amount?: number;
   special_requirements?: string;
   urgency?: 'high' | 'medium' | 'low';
+  event_id?: number;
 }
 
 export interface Booking {

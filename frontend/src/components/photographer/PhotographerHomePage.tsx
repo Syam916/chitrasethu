@@ -176,18 +176,6 @@ const PhotographerHomePage = () => {
               </div>
             )}
 
-            {/* Create Post Button */}
-            <div className="mb-4 sm:mb-6">
-              <Button
-                onClick={() => setCreatePostOpen(true)}
-                className="w-full py-4 sm:py-6 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
-                size="lg"
-              >
-                <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                Create New Post
-              </Button>
-            </div>
-
             {/* Feed Posts */}
             <MainFeed refreshTrigger={refreshTrigger} />
           </div>
@@ -204,17 +192,28 @@ const PhotographerHomePage = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <Button className="w-full justify-start bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary">
+                  <Button 
+                    className="w-full justify-start bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary"
+                    onClick={() => setCreatePostOpen(true)}
+                  >
                     <Camera className="w-4 h-4 mr-2" />
                     Share Photos
                   </Button>
                   
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => setCreatePostOpen(true)}
+                  >
                     <Video className="w-4 h-4 mr-2" />
                     Upload Video
                   </Button>
                   
-                  <Button variant="outline" className="w-full justify-start">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => setCreatePostOpen(true)}
+                  >
                     <Calendar className="w-4 h-4 mr-2" />
                     Create Event
                   </Button>

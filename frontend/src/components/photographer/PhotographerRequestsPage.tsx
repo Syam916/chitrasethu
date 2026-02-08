@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, Clock, Users, DollarSign, CheckCircle, XCircle, MessageCircle, Phone, Mail, Loader2 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -147,6 +148,16 @@ const PhotographerRequestsPage = () => {
     return timeString;
   };
 
+  // Format request age (time ago)
+  const formatRequestAge = (dateString: string | null) => {
+    if (!dateString) return 'Recent';
+    try {
+      return formatDistanceToNow(new Date(dateString), { addSuffix: true });
+    } catch {
+      return 'Recent';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted">
       <PhotographerNavbar />
@@ -226,9 +237,9 @@ const PhotographerRequestsPage = () => {
                         </Avatar>
                         <div>
                           <h3 className="font-semibold text-lg">{request.customerName}</h3>
-                          <div className="flex items-center space-x-1 text-sm text-muted-foreground mt-1">
-                            <Clock className="w-3 h-3" />
-                            <span>{request.requestedAt ? new Date(request.requestedAt).toLocaleDateString() : 'Recent'}</span>
+                          <div className="flex items-center space-x-1 text-xs sm:text-sm text-muted-foreground mt-1">
+                            <Clock className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{formatRequestAge(request.requestedAt)}</span>
                           </div>
                           <div className="flex items-center space-x-2 mt-2">
                             <Button variant="ghost" size="sm" className="h-8 px-2">

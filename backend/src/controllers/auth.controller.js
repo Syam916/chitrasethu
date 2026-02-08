@@ -251,6 +251,57 @@ export const getCurrentUser = async (req, res) => {
   }
 };
 
+// Get user by ID
+export const getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const userResult = await query(
+      `SELECT u.user_id, u.email, u.user_type, u.is_verified,
+              up.full_name, up.avatar_url, up.bio, up.phone, up.location, up.city, up.state
+       FROM users u
+       LEFT JOIN user_profiles up ON u.user_id = up.user_id
+       WHERE u.user_id = $1 AND u.is_active = true`,
+      [id]
+    );
+    
+    const user = userResult[0];
+
+    if (!user) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'User not found'
+      });
+    }
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        user: {
+          userId: user.user_id,
+          email: user.email,
+          fullName: user.full_name,
+          userType: user.user_type,
+          isVerified: user.is_verified,
+          avatarUrl: user.avatar_url,
+          bio: user.bio,
+          phone: user.phone,
+          location: user.location,
+          city: user.city,
+          state: user.state
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get user by ID error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to get user data'
+    });
+  }
+};
+
 // Update user profile
 export const updateProfile = async (req, res) => {
   try {

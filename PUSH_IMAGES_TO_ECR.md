@@ -187,3 +187,4 @@ aws ecr put-image --repository-name chitrasethu_backend --region ap-south-1 --im
 
 Repeat for frontend with the appropriate tag.
 
+

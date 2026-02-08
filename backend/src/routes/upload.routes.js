@@ -3,6 +3,8 @@ import multer from 'multer';
 import {
   uploadPhoto,
   uploadMultiplePhotos,
+  uploadVideo,
+  uploadMultipleVideos,
   deletePhoto,
   getOptimizedUrl,
   uploadAttachment
@@ -28,6 +30,25 @@ const upload = multer({
       return cb(null, true);
     }
     cb(new Error('Only image files (JPEG, PNG, WebP, HEIC) are allowed!'));
+  }
+});
+
+// Video upload (videos only) up to 100MB
+const videoUpload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 100 * 1024 * 1024 // 100MB
+  },
+  fileFilter: (req, file, cb) => {
+    // Check file type for videos
+    const allowedTypes = /mp4|mov|avi|webm|mkv|flv|wmv/;
+    const mimetype = allowedTypes.test(file.mimetype);
+    const extname = allowedTypes.test(file.originalname.toLowerCase());
+
+    if (mimetype && extname) {
+      return cb(null, true);
+    }
+    cb(new Error('Only video files (MP4, MOV, AVI, WebM, MKV, FLV, WMV) are allowed!'));
   }
 });
 
@@ -57,6 +78,12 @@ router.post('/photo', upload.single('photo'), uploadPhoto);
 
 // Upload multiple photos (max 10)
 router.post('/photos', upload.array('photos', 10), uploadMultiplePhotos);
+
+// Upload single video
+router.post('/video', videoUpload.single('video'), uploadVideo);
+
+// Upload multiple videos (max 5)
+router.post('/videos', videoUpload.array('videos', 5), uploadMultipleVideos);
 
 // Delete photo
 router.delete('/photo/:publicId', deletePhoto);

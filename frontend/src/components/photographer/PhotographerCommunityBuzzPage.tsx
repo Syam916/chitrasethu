@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Users, Plus, MessageCircle, Shield, Calendar, MapPin, Sparkles, Share2, Link, ChevronRight, Loader2, AlertCircle, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
@@ -20,9 +20,27 @@ import { useToast } from '../ui/use-toast';
 
 const PhotographerCommunityBuzzPage = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('groups');
+  
+  // Get tab from URL parameter, default to 'groups'
+  const tabFromUrl = searchParams.get('tab') || 'groups';
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
   const [groupsView, setGroupsView] = useState<'my' | 'browse'>('my');
+  
+  // Update tab when URL parameter changes
+  useEffect(() => {
+    const tab = searchParams.get('tab') || 'groups';
+    if (tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+  
+  // Update URL when tab changes
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   // Groups state
   const [groups, setGroups] = useState<CommunityGroup[]>([]);
@@ -232,7 +250,7 @@ const PhotographerCommunityBuzzPage = () => {
       </div>
 
       <div className="container mx-auto px-4 py-10 space-y-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-3">
             <TabsTrigger value="groups">
               <Users className="w-4 h-4 mr-2" />

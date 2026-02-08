@@ -5,37 +5,64 @@ import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { trendingEvents, collections, advertisements, suggestedConnections } from '../../data/dummyData';
+import authService from '@/services/auth.service';
 
-const RightSidebar = () => {
+interface RightSidebarProps {
+  onCreatePostClick?: () => void;
+  onUploadVideoClick?: () => void;
+  onCreateEventClick?: () => void;
+}
+
+const RightSidebar: React.FC<RightSidebarProps> = ({
+  onCreatePostClick,
+  onUploadVideoClick,
+  onCreateEventClick,
+}) => {
+  const user = authService.getStoredUser();
+  const isPhotographer = user?.userType === 'photographer';
+
   return (
     <div className="space-y-6">
-      {/* Create Post Section */}
-      <Card className="glass-effect">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center space-x-2">
-            <Plus className="w-5 h-5 text-primary" />
-            <span>Create Post</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            <Button className="w-full justify-start bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary">
-              <Camera className="w-4 h-4 mr-2" />
-              Share Photos
-            </Button>
-            
-            <Button variant="outline" className="w-full justify-start">
-              <Video className="w-4 h-4 mr-2" />
-              Upload Video
-            </Button>
-            
-            <Button variant="outline" className="w-full justify-start">
-              <Calendar className="w-4 h-4 mr-2" />
-              Create Event
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Create Post Section - Only for Photographers */}
+      {isPhotographer && (
+        <Card className="glass-effect">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center space-x-2">
+              <Plus className="w-5 h-5 text-primary" />
+              <span>Create Post</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <Button 
+                className="w-full justify-start bg-gradient-to-r from-primary to-primary-glow hover:from-primary-glow hover:to-primary"
+                onClick={onCreatePostClick}
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Share Photos
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={onUploadVideoClick || onCreatePostClick}
+              >
+                <Video className="w-4 h-4 mr-2" />
+                Upload Video
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full justify-start"
+                onClick={onCreateEventClick || onCreatePostClick}
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Create Event
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Trending Topics */}
       <Card className="glass-effect">

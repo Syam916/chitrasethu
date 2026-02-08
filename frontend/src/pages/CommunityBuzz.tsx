@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { TrendingUp, Users, MessageCircle, Heart, Share2, Award, Camera, Calendar, MapPin, Loader2, AlertCircle, Plus, Search, ChevronRight } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { TrendingUp, Users, MessageCircle, Heart, Share2, Award, Camera, Calendar, MapPin, Loader2, AlertCircle, Plus, Search, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -25,10 +25,29 @@ import { useToast } from '../components/ui/use-toast';
 
 const CommunityBuzz = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [likedPosts, setLikedPosts] = useState<number[]>([]);
-  const [activeTab, setActiveTab] = useState('feed');
+  
+  // Get tab from URL parameter, default to 'feed'
+  const tabFromUrl = searchParams.get('tab') || 'feed';
+  const [activeTab, setActiveTab] = useState(tabFromUrl);
   const [groupsView, setGroupsView] = useState<'my' | 'browse'>('my');
+  
+  // Update tab when URL parameter changes
+  useEffect(() => {
+    const tab = searchParams.get('tab') || 'feed';
+    if (tab !== activeTab) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
+  
+  // Update URL when tab changes
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
+  const [currentImageIndex, setCurrentImageIndex] = useState<Record<number, number>>({});
   
   // Posts state
   const [posts, setPosts] = useState<Post[]>([]);
@@ -439,58 +458,60 @@ const CommunityBuzz = () => {
       <NavbarIntegrated />
       
       {/* Hero Section */}
-      <div className="bg-gradient-to-r from-primary/10 to-primary-glow/10 py-16">
+      <div className="bg-gradient-to-r from-primary/10 to-primary-glow/10 py-8 sm:py-12 md:py-16">
         <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl font-playfair font-bold mb-4">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-playfair font-bold mb-3 sm:mb-4">
             Community <span className="gradient-text">Buzz</span>
           </h1>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+          <p className="text-sm sm:text-base md:text-xl text-muted-foreground mb-6 sm:mb-8 max-w-2xl mx-auto px-2">
             Connect with fellow photographers, share experiences, and stay updated with the latest trends in photography.
           </p>
           
-          <div className="flex justify-center space-x-6 text-center">
-            <div>
-              <div className="text-2xl font-bold text-primary">2.5K+</div>
-              <div className="text-sm text-muted-foreground">Active Members</div>
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-center">
+            <div className="flex-1 min-w-[100px] sm:flex-none">
+              <div className="text-xl sm:text-2xl font-bold text-primary">2.5K+</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Active Members</div>
             </div>
-            <div>
-              <div className="text-2xl font-bold text-primary">{posts.length}</div>
-              <div className="text-sm text-muted-foreground">Posts</div>
+            <div className="flex-1 min-w-[100px] sm:flex-none">
+              <div className="text-xl sm:text-2xl font-bold text-primary">{posts.length}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Posts</div>
             </div>
-            <div>
-              <div className="text-2xl font-bold text-primary">{discussionTopics.length}</div>
-              <div className="text-sm text-muted-foreground">Active Discussions</div>
+            <div className="flex-1 min-w-[100px] sm:flex-none">
+              <div className="text-xl sm:text-2xl font-bold text-primary">{discussionTopics.length}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Active Discussions</div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="feed">Community Feed</TabsTrigger>
-            <TabsTrigger value="discussions">Discussions</TabsTrigger>
-            <TabsTrigger value="groups">My Groups</TabsTrigger>
-            <TabsTrigger value="collaborations">Collaborations</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
-          </TabsList>
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-6 md:py-8">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4 sm:space-y-6">
+          <div className="overflow-x-auto -mx-2 sm:mx-0 px-2 sm:px-0">
+            <TabsList className="inline-flex w-full min-w-max sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-1 sm:gap-2">
+              <TabsTrigger value="feed" className="text-xs sm:text-sm px-3 sm:px-2 md:px-4 whitespace-nowrap flex-shrink-0">Community Feed</TabsTrigger>
+              <TabsTrigger value="discussions" className="text-xs sm:text-sm px-3 sm:px-2 md:px-4 whitespace-nowrap flex-shrink-0">Discussions</TabsTrigger>
+              <TabsTrigger value="groups" className="text-xs sm:text-sm px-3 sm:px-2 md:px-4 whitespace-nowrap flex-shrink-0">My Groups</TabsTrigger>
+              <TabsTrigger value="collaborations" className="text-xs sm:text-sm px-3 sm:px-2 md:px-4 whitespace-nowrap flex-shrink-0">Collaborations</TabsTrigger>
+              <TabsTrigger value="events" className="text-xs sm:text-sm px-3 sm:px-2 md:px-4 whitespace-nowrap flex-shrink-0">Events</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Community Feed */}
-          <TabsContent value="feed" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <TabsContent value="feed" className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
               {/* Main Feed */}
-              <div className="lg:col-span-2 space-y-6">
+              <div className="lg:col-span-2 space-y-4 sm:space-y-6">
                 {/* Community Highlights */}
                 <Card className="glass-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Award className="w-5 h-5 text-primary" />
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                      <Award className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                       <span>Community Highlights</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 sm:p-6 pt-0">
                     {communityHighlights.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
                         {communityHighlights.map((highlight) => (
                           <div 
                             key={highlight.id} 
@@ -562,22 +583,22 @@ const CommunityBuzz = () => {
                     <Card key={post.postId} className="glass-effect">
                       <CardContent className="p-0">
                         {/* Post Header */}
-                        <div className="p-4 border-b border-border/50">
-                          <div className="flex items-center space-x-3">
-                            <Avatar className="w-10 h-10 ring-2 ring-primary/20">
+                        <div className="p-3 sm:p-4 border-b border-border/50">
+                          <div className="flex items-center space-x-2 sm:space-x-3">
+                            <Avatar className="w-8 h-8 sm:w-10 sm:h-10 ring-2 ring-primary/20 flex-shrink-0">
                               <AvatarImage src={post.avatarUrl} alt={post.fullName} />
-                              <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
+                              <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs sm:text-sm">
                                 {post.fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-1">
-                                <h3 className="font-semibold text-sm">{post.fullName}</h3>
-                                <Badge variant="secondary" className="text-xs capitalize">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-1 flex-wrap">
+                                <h3 className="font-semibold text-xs sm:text-sm truncate">{post.fullName}</h3>
+                                <Badge variant="secondary" className="text-[10px] sm:text-xs capitalize flex-shrink-0">
                                   {post.userType}
                                 </Badge>
                               </div>
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-[10px] sm:text-xs text-muted-foreground truncate">
                                 {post.location && `${post.location} • `}
                                 {formatTimeAgo(post.createdAt)}
                               </p>
@@ -586,46 +607,129 @@ const CommunityBuzz = () => {
                         </div>
 
                         {/* Post Media */}
-                        {post.mediaUrls && post.mediaUrls.length > 0 && (
-                          <div className="relative">
-                            <div className="aspect-square bg-muted/20">
-                              <img 
-                                src={post.mediaUrls[0].url || post.thumbnailUrl} 
-                                alt={post.caption || "Post content"} 
-                                className="w-full h-full object-cover"
-                              />
+                        {post.mediaUrls && post.mediaUrls.length > 0 && (() => {
+                          const mediaUrls = post.mediaUrls;
+                          const hasMultipleMedia = mediaUrls.length > 1;
+                          const currentIndex = currentImageIndex[post.postId] || 0;
+                          const currentMedia = mediaUrls[currentIndex];
+                          
+                          const goToNextImage = (e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            if (hasMultipleMedia) {
+                              const nextIndex = (currentIndex + 1) % mediaUrls.length;
+                              setCurrentImageIndex(prev => ({
+                                ...prev,
+                                [post.postId]: nextIndex
+                              }));
+                            }
+                          };
+
+                          const goToPrevImage = (e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            if (hasMultipleMedia) {
+                              const prevIndex = currentIndex === 0 ? mediaUrls.length - 1 : currentIndex - 1;
+                              setCurrentImageIndex(prev => ({
+                                ...prev,
+                                [post.postId]: prevIndex
+                              }));
+                            }
+                          };
+
+                          return (
+                            <div className="relative group">
+                              <div className="aspect-square bg-muted/20 relative overflow-hidden">
+                                <img 
+                                  src={currentMedia.url || post.thumbnailUrl} 
+                                  alt={post.caption || "Post content"} 
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              
+                              {/* Navigation Arrows */}
+                              {hasMultipleMedia && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                                    onClick={goToPrevImage}
+                                  >
+                                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                                    onClick={goToNextImage}
+                                  >
+                                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                                  </Button>
+                                </>
+                              )}
+                              
+                              {/* Media Counter */}
+                              {hasMultipleMedia && (
+                                <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-black/50 text-white text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full backdrop-blur-sm">
+                                  {currentIndex + 1}/{mediaUrls.length}
+                                </div>
+                              )}
+
+                              {/* Image Indicators */}
+                              {hasMultipleMedia && (
+                                <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex space-x-1">
+                                  {mediaUrls.map((_, index) => (
+                                    <button
+                                      key={index}
+                                      type="button"
+                                      className={`h-1 sm:h-1.5 rounded-full transition-all ${
+                                        index === currentIndex 
+                                          ? 'bg-white w-4 sm:w-6' 
+                                          : 'bg-white/50 w-1 sm:w-1.5 hover:bg-white/75'
+                                      }`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCurrentImageIndex(prev => ({
+                                          ...prev,
+                                          [post.postId]: index
+                                        }));
+                                      }}
+                                      aria-label={`Go to image ${index + 1}`}
+                                    />
+                                  ))}
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Post Actions & Content */}
-                        <div className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center space-x-4">
+                        <div className="p-3 sm:p-4">
+                          <div className="flex items-center justify-between mb-2 sm:mb-3">
+                            <div className="flex items-center space-x-2 sm:space-x-4">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className={`flex items-center space-x-1 ${likedPosts.includes(post.postId) ? 'text-red-500' : ''}`}
+                                className={`flex items-center space-x-1 h-8 sm:h-9 px-2 sm:px-3 ${likedPosts.includes(post.postId) ? 'text-red-500' : ''}`}
                                 onClick={() => toggleLike(post.postId)}
                               >
-                                <Heart className={`w-5 h-5 ${likedPosts.includes(post.postId) ? 'fill-current' : ''}`} />
-                                <span className="text-sm font-medium">{post.likesCount}</span>
+                                <Heart className={`w-4 h-4 sm:w-5 sm:h-5 ${likedPosts.includes(post.postId) ? 'fill-current' : ''}`} />
+                                <span className="text-xs sm:text-sm font-medium">{post.likesCount}</span>
                               </Button>
                               
-                              <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                                <MessageCircle className="w-5 h-5" />
-                                <span className="text-sm font-medium">{post.commentsCount}</span>
+                              <Button variant="ghost" size="sm" className="flex items-center space-x-1 h-8 sm:h-9 px-2 sm:px-3">
+                                <MessageCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                                <span className="text-xs sm:text-sm font-medium">{post.commentsCount}</span>
                               </Button>
                               
-                              <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                                <Share2 className="w-5 h-5" />
-                                <span className="text-sm font-medium">{post.sharesCount}</span>
+                              <Button variant="ghost" size="sm" className="flex items-center space-x-1 h-8 sm:h-9 px-2 sm:px-3">
+                                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                                <span className="text-xs sm:text-sm font-medium">{post.sharesCount}</span>
                               </Button>
                             </div>
                           </div>
 
                           {post.caption && (
-                            <p className="text-sm leading-relaxed mb-2">{post.caption}</p>
+                            <p className="text-xs sm:text-sm leading-relaxed mb-2 break-words">{post.caption}</p>
                           )}
                           
                           {post.tags && post.tags.length > 0 && (
@@ -645,36 +749,36 @@ const CommunityBuzz = () => {
               </div>
 
               {/* Sidebar */}
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Trending Topics */}
                 <Card className="glass-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <TrendingUp className="w-5 h-5 text-primary" />
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                      <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                       <span>Trending Now</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 sm:p-6 pt-0">
                     {trendingLoading ? (
                       <div className="flex items-center justify-center py-4">
                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                       </div>
                     ) : trendingEvents.length > 0 ? (
-                      <div className="space-y-3">
+                      <div className="space-y-2 sm:space-y-3">
                         {trendingEvents.map((event, index) => (
-                          <div key={index} className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-sm">{event.name}</p>
-                              <p className="text-xs text-muted-foreground">{event.posts}K posts</p>
+                          <div key={index} className="flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="font-medium text-xs sm:text-sm truncate">{event.name}</p>
+                              <p className="text-[10px] sm:text-xs text-muted-foreground">{event.posts}K posts</p>
                             </div>
-                            <Badge variant="secondary" className="text-xs">
+                            <Badge variant="secondary" className="text-[10px] sm:text-xs flex-shrink-0">
                               {event.trending}
                             </Badge>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
+                      <p className="text-xs sm:text-sm text-muted-foreground text-center py-4">
                         No trending data available
                       </p>
                     )}
@@ -683,40 +787,40 @@ const CommunityBuzz = () => {
 
                 {/* Top Photographers */}
                 <Card className="glass-effect">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Camera className="w-5 h-5 text-primary" />
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+                      <Camera className="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0" />
                       <span>Top Contributors</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 sm:p-6 pt-0">
                     {contributorsLoading ? (
                       <div className="flex items-center justify-center py-4">
                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                       </div>
                     ) : topContributors.length > 0 ? (
-                      <div className="space-y-3">
+                      <div className="space-y-2 sm:space-y-3">
                         {topContributors.map((photographer, index) => {
                           const displayName = photographer.businessName || photographer.fullName || 'Photographer';
                           return (
-                            <div key={photographer.photographerId} className="flex items-center space-x-3">
-                              <div className="text-xs font-bold text-primary w-6">#{index + 1}</div>
-                              <Avatar className="w-8 h-8">
+                            <div key={photographer.photographerId} className="flex items-center space-x-2 sm:space-x-3">
+                              <div className="text-[10px] sm:text-xs font-bold text-primary w-5 sm:w-6 flex-shrink-0">#{index + 1}</div>
+                              <Avatar className="w-7 h-7 sm:w-8 sm:h-8 flex-shrink-0">
                                 <AvatarImage src={photographer.avatarUrl} alt={displayName} />
-                                <AvatarFallback className="text-xs bg-gradient-to-br from-primary to-primary-glow text-white">
+                                <AvatarFallback className="text-[10px] sm:text-xs bg-gradient-to-br from-primary to-primary-glow text-white">
                                   {displayName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
                               <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm truncate">{displayName}</p>
-                                <p className="text-xs text-muted-foreground">{photographer.totalReviews || 0} contributions</p>
+                                <p className="font-medium text-xs sm:text-sm truncate">{displayName}</p>
+                                <p className="text-[10px] sm:text-xs text-muted-foreground">{photographer.totalReviews || 0} contributions</p>
                               </div>
                             </div>
                           );
                         })}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground text-center py-4">
+                      <p className="text-xs sm:text-sm text-muted-foreground text-center py-4">
                         No contributors available
                       </p>
                     )}
@@ -727,78 +831,79 @@ const CommunityBuzz = () => {
           </TabsContent>
 
           {/* Discussions */}
-          <TabsContent value="discussions" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <TabsContent value="discussions" className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
               <div className="lg:col-span-2">
                 <Card className="glass-effect">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle>Active Discussions</CardTitle>
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                      <CardTitle className="text-base sm:text-lg">Active Discussions</CardTitle>
                       {isAuthenticated && (
                         <Button
                           onClick={() => setCreateDiscussionOpen(true)}
                           size="sm"
+                          className="w-full sm:w-auto text-xs sm:text-sm"
                         >
-                          <Plus className="w-4 h-4 mr-2" />
+                          <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                           New Discussion
                         </Button>
                       )}
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 sm:p-6">
                     {discussionLoading && (
                       <div className="flex items-center justify-center py-8">
-                        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                        <span className="ml-2 text-muted-foreground">Loading discussions...</span>
+                        <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-primary" />
+                        <span className="ml-2 text-xs sm:text-sm text-muted-foreground">Loading discussions...</span>
                       </div>
                     )}
 
                     {discussionError && (
                       <Alert variant="destructive" className="mb-4">
                         <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>{discussionError}</AlertDescription>
+                        <AlertDescription className="text-xs sm:text-sm">{discussionError}</AlertDescription>
                       </Alert>
                     )}
 
                     {!discussionLoading && !discussionError && (
-                      <div className="space-y-4">
+                      <div className="space-y-3 sm:space-y-4">
                         {discussionTopics.length === 0 ? (
                           <div className="text-center py-8 text-muted-foreground">
-                            <MessageCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                            <p>No discussions found. Be the first to start one!</p>
+                            <MessageCircle className="w-10 h-10 sm:w-12 sm:h-12 mx-auto mb-4 opacity-50" />
+                            <p className="text-sm sm:text-base">No discussions found. Be the first to start one!</p>
                           </div>
                         ) : (
                           discussionTopics.map((topic) => (
                             <div 
                               key={topic.topicId} 
-                              className="p-4 border border-border/50 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
+                              className="p-3 sm:p-4 border border-border/50 rounded-lg hover:bg-muted/30 transition-colors cursor-pointer"
                               onClick={() => {
                                 navigate(`/discussions/${topic.topicId}`);
                               }}
                             >
-                              <div className="flex items-start justify-between mb-2">
-                                <div className="flex-1">
-                                  <div className="flex items-center space-x-2 mb-1">
-                                    <h3 className="font-semibold">{topic.title}</h3>
+                              <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-2 sm:gap-0 mb-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-2 mb-1 flex-wrap">
+                                    <h3 className="font-semibold text-sm sm:text-base truncate">{topic.title}</h3>
                                     {topic.isHot && (
-                                      <Badge variant="destructive" className="text-xs">Hot</Badge>
+                                      <Badge variant="destructive" className="text-[10px] sm:text-xs flex-shrink-0">Hot</Badge>
                                     )}
                                     {topic.isPinned && (
-                                      <Badge variant="secondary" className="text-xs">Pinned</Badge>
+                                      <Badge variant="secondary" className="text-[10px] sm:text-xs flex-shrink-0">Pinned</Badge>
                                     )}
                                   </div>
-                                  <p className="text-sm text-muted-foreground">Started by {topic.authorName}</p>
+                                  <p className="text-xs sm:text-sm text-muted-foreground">Started by {topic.authorName}</p>
                                 </div>
-                                <Badge variant="outline" className="text-xs">
+                                <Badge variant="outline" className="text-[10px] sm:text-xs flex-shrink-0">
                                   {topic.category}
                                 </Badge>
                               </div>
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <div className="flex items-center space-x-4">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 text-xs text-muted-foreground">
+                                <div className="flex items-center space-x-3 sm:space-x-4 flex-wrap">
                                   <span>{topic.repliesCount} replies</span>
-                                  <span>Last active {formatTimeAgo(topic.lastActivityAt)}</span>
+                                  <span className="text-[10px] sm:text-xs">Last active {formatTimeAgo(topic.lastActivityAt)}</span>
                                 </div>
-                                <Button variant="ghost" size="sm" onClick={(e) => {
+                                <Button variant="ghost" size="sm" className="text-xs sm:text-sm h-7 sm:h-8 px-2 sm:px-3" onClick={(e) => {
                                   e.stopPropagation();
                                   navigate(`/discussions/${topic.topicId}`);
                                 }}>
@@ -814,16 +919,16 @@ const CommunityBuzz = () => {
                 </Card>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 <Card className="glass-effect">
-                  <CardHeader>
-                    <CardTitle>Discussion Categories</CardTitle>
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base sm:text-lg">Discussion Categories</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 sm:p-6 pt-0">
                     <div className="space-y-2">
                       <Button 
                         variant={selectedCategory === '' ? "default" : "ghost"} 
-                        className="w-full justify-start"
+                        className="w-full justify-start text-xs sm:text-sm h-8 sm:h-9"
                         onClick={() => setSelectedCategory('')}
                       >
                         All ({discussionTopics.length})
@@ -832,7 +937,7 @@ const CommunityBuzz = () => {
                         <Button 
                           key={category.name} 
                           variant={selectedCategory === category.name ? "default" : "ghost"} 
-                          className="w-full justify-start"
+                          className="w-full justify-start text-xs sm:text-sm h-8 sm:h-9"
                           onClick={() => setSelectedCategory(category.name)}
                         >
                           {category.name} ({category.topicCount})
@@ -858,26 +963,26 @@ const CommunityBuzz = () => {
           {/* Events */}
           <TabsContent value="events" className="space-y-6">
             {eventsLoading && (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span className="ml-2 text-muted-foreground">Loading events...</span>
+              <div className="flex items-center justify-center py-8 sm:py-12">
+                <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-primary" />
+                <span className="ml-2 text-xs sm:text-sm text-muted-foreground">Loading events...</span>
               </div>
             )}
 
             {eventsError && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{eventsError}</AlertDescription>
+                <AlertDescription className="text-xs sm:text-sm">{eventsError}</AlertDescription>
               </Alert>
             )}
 
             {!eventsLoading && !eventsError && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                 {events.length === 0 ? (
-                  <div className="col-span-full text-center py-12 text-muted-foreground">
-                    <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-semibold mb-2">No events available</p>
-                    <p>Check back soon for upcoming events!</p>
+                  <div className="col-span-full text-center py-8 sm:py-12 text-muted-foreground">
+                    <Calendar className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 opacity-50" />
+                    <p className="text-base sm:text-lg font-semibold mb-2">No events available</p>
+                    <p className="text-sm sm:text-base">Check back soon for upcoming events!</p>
                   </div>
                 ) : (
                   events.map((event) => {
@@ -904,40 +1009,40 @@ const CommunityBuzz = () => {
                               alt={event.title}
                               className="w-full h-full object-cover"
                             />
-                            <Badge className="absolute top-3 left-3 bg-primary/90">
+                            <Badge className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-primary/90 text-[10px] sm:text-xs">
                               {event.categoryName}
                             </Badge>
                           </div>
-                          <div className="p-4">
-                            <h3 className="font-semibold mb-2">{event.title}</h3>
+                          <div className="p-3 sm:p-4">
+                            <h3 className="font-semibold text-sm sm:text-base mb-2">{event.title}</h3>
                             {event.description && (
-                              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                              <p className="text-xs sm:text-sm text-muted-foreground mb-3 line-clamp-2">
                                 {event.description}
                               </p>
                             )}
-                            <div className="space-y-1 text-sm text-muted-foreground">
+                            <div className="space-y-1 text-xs sm:text-sm text-muted-foreground">
                               <div className="flex items-center space-x-1">
-                                <Calendar className="w-3 h-3" />
-                                <span>{eventDate} {eventTime !== 'TBD' && `at ${eventTime}`}</span>
+                                <Calendar className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{eventDate} {eventTime !== 'TBD' && `at ${eventTime}`}</span>
                               </div>
                               <div className="flex items-center space-x-1">
-                                <MapPin className="w-3 h-3" />
-                                <span>{event.location}</span>
+                                <MapPin className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{event.location}</span>
                               </div>
                               {event.expectedAttendees && (
                                 <div className="flex items-center space-x-1">
-                                  <Users className="w-3 h-3" />
+                                  <Users className="w-3 h-3 flex-shrink-0" />
                                   <span>{event.expectedAttendees} attending</span>
                                 </div>
                               )}
                               {event.minBudget > 0 && (
-                                <div className="text-primary font-medium">
+                                <div className="text-primary font-medium text-xs sm:text-sm">
                                   ₹{event.minBudget.toLocaleString()} - ₹{event.maxBudget.toLocaleString()}
                                 </div>
                               )}
                             </div>
                             <Button 
-                              className="w-full mt-4" 
+                              className="w-full mt-3 sm:mt-4" 
                               size="sm"
                               onClick={() => {
                                 // TODO: Navigate to event detail page or booking
@@ -960,22 +1065,22 @@ const CommunityBuzz = () => {
           </TabsContent>
 
           {/* Groups */}
-          <TabsContent value="groups" className="space-y-6">
+          <TabsContent value="groups" className="space-y-4 sm:space-y-6">
             {/* Sub-tabs for My Groups vs Browse All */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
               <Tabs value={groupsView} onValueChange={(v) => setGroupsView(v as 'my' | 'browse')} className="w-full">
-                <TabsList className="grid w-full max-w-md grid-cols-2">
-                  <TabsTrigger value="my">My Groups</TabsTrigger>
-                  <TabsTrigger value="browse">Browse All Groups</TabsTrigger>
+                <TabsList className="grid w-full max-w-md grid-cols-2 gap-1 sm:gap-2">
+                  <TabsTrigger value="my" className="text-xs sm:text-sm px-2 sm:px-4">My Groups</TabsTrigger>
+                  <TabsTrigger value="browse" className="text-xs sm:text-sm px-2 sm:px-4">Browse All Groups</TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
 
             {/* Search for Browse view */}
             {groupsView === 'browse' && (
-              <div className="flex gap-2 mb-4">
+              <div className="flex flex-col sm:flex-row gap-2 mb-4">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Search className="absolute left-2 sm:left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-3 h-3 sm:w-4 sm:h-4" />
                   <Input
                     placeholder="Search groups by name..."
                     value={groupSearch}
@@ -987,11 +1092,11 @@ const CommunityBuzz = () => {
                         loadAllGroups();
                       }
                     }}
-                    className="pl-10"
+                    className="pl-8 sm:pl-10 text-sm sm:text-base h-9 sm:h-10"
                   />
                 </div>
-                <Button onClick={loadAllGroups} variant="outline">
-                  <Search className="w-4 h-4 mr-2" />
+                <Button onClick={loadAllGroups} variant="outline" className="w-full sm:w-auto text-xs sm:text-sm h-9 sm:h-10">
+                  <Search className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                   Search
                 </Button>
               </div>
@@ -1001,36 +1106,38 @@ const CommunityBuzz = () => {
             {groupsView === 'my' && (
               <>
                 {groupsLoading && (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                    <span className="ml-2 text-muted-foreground">Loading groups...</span>
+                  <div className="flex items-center justify-center py-8 sm:py-12">
+                    <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-primary" />
+                    <span className="ml-2 text-xs sm:text-sm text-muted-foreground">Loading groups...</span>
                   </div>
                 )}
 
                 {groupsError && (
                   <Alert variant="destructive" className="mb-4">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{groupsError}</AlertDescription>
+                    <AlertDescription className="text-xs sm:text-sm">{groupsError}</AlertDescription>
                   </Alert>
                 )}
 
                 {!groupsLoading && !groupsError && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {groups.length === 0 ? (
-                      <div className="col-span-full text-center py-12 text-muted-foreground">
-                        <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                        <p className="text-lg font-semibold mb-2">No groups yet</p>
-                        <p>Join a group or create your own community to get started!</p>
-                        <div className="flex gap-2 justify-center mt-4">
+                      <div className="col-span-full text-center py-8 sm:py-12 text-muted-foreground">
+                        <Users className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-base sm:text-lg font-semibold mb-2">No groups yet</p>
+                        <p className="text-sm sm:text-base">Join a group or create your own community to get started!</p>
+                        <div className="flex flex-col sm:flex-row gap-2 justify-center mt-4">
                           {isAuthenticated && (
-                            <Button onClick={() => setCreateGroupOpen(true)}>
-                              <Plus className="w-4 h-4 mr-2" />
+                            <Button onClick={() => setCreateGroupOpen(true)} size="sm" className="text-xs sm:text-sm">
+                              <Plus className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                               Start New Community
                             </Button>
                           )}
                           <Button 
                             variant="outline"
                             onClick={() => setGroupsView('browse')}
+                            size="sm"
+                            className="text-xs sm:text-sm"
                           >
                             Browse All Groups
                           </Button>
@@ -1048,44 +1155,44 @@ const CommunityBuzz = () => {
                             className="glass-effect hover:shadow-elegant transition-all duration-300 cursor-pointer"
                             onClick={() => navigate(groupPath)}
                           >
-                            <CardHeader className="pb-4">
-                              <div className="flex items-start gap-3">
-                                <Avatar className="w-12 h-12 ring-2 ring-primary/20">
+                            <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-6">
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <Avatar className="w-10 h-10 sm:w-12 sm:h-12 ring-2 ring-primary/20 flex-shrink-0">
                                   <AvatarImage src={group.groupIconUrl} alt={group.groupName} />
-                                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
+                                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs sm:text-sm">
                                     {group.groupName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <CardTitle className="text-lg">{group.groupName}</CardTitle>
-                                    <Badge variant="outline" className="capitalize text-xs">
+                                <div className="space-y-1 min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <CardTitle className="text-sm sm:text-lg truncate">{group.groupName}</CardTitle>
+                                    <Badge variant="outline" className="capitalize text-[10px] sm:text-xs flex-shrink-0">
                                       {group.groupType}
                                     </Badge>
                                   </div>
-                                  <p className="text-xs text-muted-foreground">{group.description}</p>
+                                  <p className="text-xs text-muted-foreground line-clamp-2">{group.description}</p>
                                 </div>
                               </div>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0 text-xs text-muted-foreground">
                                 <span>{group.memberCount} members</span>
-                                <span>Last active {formatTimeAgo(group.lastActivityAt)}</span>
+                                <span className="text-[10px] sm:text-xs">Last active {formatTimeAgo(group.lastActivityAt)}</span>
                               </div>
-                              <div className="flex items-center justify-between">
-                                <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                              <div className="flex items-center justify-between gap-2">
+                                <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize text-[10px] sm:text-xs">
                                   {group.role || group.userRole || 'member'}
                                 </Badge>
                                 <Button 
                                   variant="ghost" 
                                   size="sm" 
-                                  className="text-xs text-primary flex items-center gap-1"
+                                  className="text-[10px] sm:text-xs text-primary flex items-center gap-1 h-7 sm:h-8 px-2 sm:px-3"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     navigate(groupPath);
                                   }}
                                 >
-                                  View Details <ChevronRight className="w-3 h-3" />
+                                  View Details <ChevronRight className="w-2 h-2 sm:w-3 sm:h-3" />
                                 </Button>
                               </div>
                             </CardContent>
@@ -1102,26 +1209,26 @@ const CommunityBuzz = () => {
             {groupsView === 'browse' && (
               <>
                 {allGroupsLoading && (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                    <span className="ml-2 text-muted-foreground">Loading groups...</span>
+                  <div className="flex items-center justify-center py-8 sm:py-12">
+                    <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-primary" />
+                    <span className="ml-2 text-xs sm:text-sm text-muted-foreground">Loading groups...</span>
                   </div>
                 )}
 
                 {allGroupsError && (
                   <Alert variant="destructive" className="mb-4">
                     <AlertCircle className="h-4 w-4" />
-                    <AlertDescription>{allGroupsError}</AlertDescription>
+                    <AlertDescription className="text-xs sm:text-sm">{allGroupsError}</AlertDescription>
                   </Alert>
                 )}
 
                 {!allGroupsLoading && !allGroupsError && (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {allGroups.length === 0 ? (
-                      <div className="col-span-full text-center py-12 text-muted-foreground">
-                        <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                        <p className="text-lg font-semibold mb-2">No groups found</p>
-                        <p>Try adjusting your search or create a new group!</p>
+                      <div className="col-span-full text-center py-8 sm:py-12 text-muted-foreground">
+                        <Users className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-base sm:text-lg font-semibold mb-2">No groups found</p>
+                        <p className="text-sm sm:text-base">Try adjusting your search or create a new group!</p>
                       </div>
                     ) : (
                       allGroups.map((group) => {
@@ -1136,37 +1243,37 @@ const CommunityBuzz = () => {
                             className="glass-effect hover:shadow-elegant transition-all duration-300 cursor-pointer"
                             onClick={() => navigate(groupPath)}
                           >
-                            <CardHeader className="pb-4">
-                              <div className="flex items-start gap-3">
-                                <Avatar className="w-12 h-12 ring-2 ring-primary/20">
+                            <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-6">
+                              <div className="flex items-start gap-2 sm:gap-3">
+                                <Avatar className="w-10 h-10 sm:w-12 sm:h-12 ring-2 ring-primary/20 flex-shrink-0">
                                   <AvatarImage src={group.groupIconUrl} alt={group.groupName} />
-                                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white">
+                                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs sm:text-sm">
                                     {group.groupName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
                                   </AvatarFallback>
                                 </Avatar>
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <CardTitle className="text-lg">{group.groupName}</CardTitle>
-                                    <Badge variant="outline" className="capitalize text-xs">
+                                <div className="space-y-1 min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <CardTitle className="text-sm sm:text-lg truncate">{group.groupName}</CardTitle>
+                                    <Badge variant="outline" className="capitalize text-[10px] sm:text-xs flex-shrink-0">
                                       {group.groupType}
                                     </Badge>
                                   </div>
-                                  <p className="text-xs text-muted-foreground">{group.description}</p>
+                                  <p className="text-xs text-muted-foreground line-clamp-2">{group.description}</p>
                                 </div>
                               </div>
                             </CardHeader>
-                            <CardContent className="space-y-4">
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0 text-xs text-muted-foreground">
                                 <span>{group.memberCount} members</span>
-                                <span>Last active {formatTimeAgo(group.lastActivityAt)}</span>
+                                <span className="text-[10px] sm:text-xs">Last active {formatTimeAgo(group.lastActivityAt)}</span>
                               </div>
                               <div className="flex items-center justify-between gap-2">
                                 {isMember ? (
-                                  <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                                  <Badge variant={group.role === 'admin' ? 'default' : 'secondary'} className="capitalize text-[10px] sm:text-xs">
                                     {group.role || group.userRole}
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-[10px] sm:text-xs">
                                     Public Group
                                   </Badge>
                                 )}
@@ -1174,18 +1281,18 @@ const CommunityBuzz = () => {
                                   {!isMember && (
                                     <Button 
                                       size="sm" 
-                                      className="text-xs"
+                                      className="text-[10px] sm:text-xs h-7 sm:h-8 px-2 sm:px-3"
                                       onClick={(e) => handleJoinGroup(group.groupId, e)}
                                       disabled={joiningGroupId === group.groupId}
                                     >
                                       {joiningGroupId === group.groupId ? (
                                         <>
-                                          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                                          <Loader2 className="w-2 h-2 sm:w-3 sm:h-3 mr-1 animate-spin" />
                                           Joining...
                                         </>
                                       ) : (
                                         <>
-                                          <Plus className="w-3 h-3 mr-1" />
+                                          <Plus className="w-2 h-2 sm:w-3 sm:h-3 mr-1" />
                                           Join
                                         </>
                                       )}
@@ -1194,13 +1301,13 @@ const CommunityBuzz = () => {
                                   <Button 
                                     variant="ghost" 
                                     size="sm" 
-                                    className="text-xs text-primary flex items-center gap-1"
+                                    className="text-[10px] sm:text-xs text-primary flex items-center gap-1 h-7 sm:h-8 px-2 sm:px-3"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       navigate(groupPath);
                                     }}
                                   >
-                                    View <ChevronRight className="w-3 h-3" />
+                                    View <ChevronRight className="w-2 h-2 sm:w-3 sm:h-3" />
                                   </Button>
                                 </div>
                               </div>
@@ -1227,26 +1334,26 @@ const CommunityBuzz = () => {
             </div>
 
             {collaborationsLoading && (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                <span className="ml-2 text-muted-foreground">Loading collaborations...</span>
+              <div className="flex items-center justify-center py-8 sm:py-12">
+                <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 animate-spin text-primary" />
+                <span className="ml-2 text-xs sm:text-sm text-muted-foreground">Loading collaborations...</span>
               </div>
             )}
 
             {collaborationsError && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{collaborationsError}</AlertDescription>
+                <AlertDescription className="text-xs sm:text-sm">{collaborationsError}</AlertDescription>
               </Alert>
             )}
 
             {!collaborationsLoading && !collaborationsError && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
                 {collaborations.length === 0 ? (
-                  <div className="col-span-full text-center py-12 text-muted-foreground">
-                    <Share2 className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-semibold mb-2">No collaborations yet</p>
-                    <p>Browse available collaborations or post your own!</p>
+                  <div className="col-span-full text-center py-8 sm:py-12 text-muted-foreground">
+                    <Share2 className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 opacity-50" />
+                    <p className="text-base sm:text-lg font-semibold mb-2">No collaborations yet</p>
+                    <p className="text-sm sm:text-base">Browse available collaborations or post your own!</p>
                   </div>
                 ) : (
                   collaborations.map((collab) => (
@@ -1263,47 +1370,47 @@ const CommunityBuzz = () => {
                         }
                       }}
                     >
-                      <CardHeader className="pb-4">
-                        <div className="flex items-start gap-3">
-                          <Avatar className="w-10 h-10 ring-2 ring-primary/20">
+                      <CardHeader className="pb-3 sm:pb-4 p-4 sm:p-6">
+                        <div className="flex items-start gap-2 sm:gap-3">
+                          <Avatar className="w-8 h-8 sm:w-10 sm:h-10 ring-2 ring-primary/20 flex-shrink-0">
                             <AvatarImage src={collab.posterAvatar} alt={collab.posterName} />
-                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs">
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-[10px] sm:text-xs">
                               {collab.posterName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <CardTitle className="text-lg">{collab.title}</CardTitle>
-                            <p className="text-xs text-muted-foreground">{collab.posterName}</p>
+                          <div className="min-w-0 flex-1">
+                            <CardTitle className="text-sm sm:text-lg truncate">{collab.title}</CardTitle>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground truncate">{collab.posterName}</p>
                           </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                          <Badge variant={collab.collaborationType === 'seeking' ? 'secondary' : 'default'} className="capitalize">
+                      <CardContent className="space-y-3 sm:space-y-4 p-4 sm:p-6 pt-0">
+                        <div className="flex flex-wrap gap-2 text-[10px] sm:text-xs text-muted-foreground">
+                          <Badge variant={collab.collaborationType === 'seeking' ? 'secondary' : 'default'} className="capitalize text-[10px] sm:text-xs">
                             {collab.collaborationType}
                           </Badge>
                           {collab.location && (
                             <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3" />
-                              {collab.location}
+                              <MapPin className="w-2 h-2 sm:w-3 sm:h-3 flex-shrink-0" />
+                              <span className="truncate">{collab.location}</span>
                             </span>
                           )}
-                          {collab.date && <span>{collab.date}</span>}
-                          {collab.budget && <span className="font-medium text-primary">{collab.budget}</span>}
+                          {collab.date && <span className="truncate">{collab.date}</span>}
+                          {collab.budget && <span className="font-medium text-primary truncate">{collab.budget}</span>}
                         </div>
-                        <p className="text-sm leading-relaxed text-muted-foreground">
+                        <p className="text-xs sm:text-sm leading-relaxed text-muted-foreground line-clamp-3">
                           {collab.description}
                         </p>
                         {collab.skills && collab.skills.length > 0 && (
                           <div className="flex flex-wrap gap-2">
                             {collab.skills.map((skill, index) => (
-                              <Badge key={index} variant="outline" className="text-xs">
+                              <Badge key={index} variant="outline" className="text-[10px] sm:text-xs">
                                 {skill}
                               </Badge>
                             ))}
                           </div>
                         )}
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 sm:gap-0 text-[10px] sm:text-xs text-muted-foreground">
                           <span>{collab.responsesCount} responses</span>
                           <span>Posted {formatTimeAgo(collab.createdAt)}</span>
                         </div>
@@ -1311,7 +1418,7 @@ const CommunityBuzz = () => {
                           <div className="flex gap-2">
                             <Button 
                               size="sm" 
-                              className="flex-1"
+                              className="flex-1 text-xs sm:text-sm h-8 sm:h-9"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const userType = localStorage.getItem('userType');

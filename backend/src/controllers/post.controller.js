@@ -35,26 +35,50 @@ export const getAllPosts = async (req, res) => {
     res.status(200).json({
       status: 'success',
       data: {
-        posts: posts.map(p => ({
-          postId: p.post_id,
-          userId: p.user_id,
-          fullName: p.full_name,
-          avatarUrl: p.avatar_url,
-          userType: p.user_type,
-          photographerId: p.photographer_id,
-          contentType: p.content_type,
-          caption: p.caption,
-          mediaUrls: p.media_urls,
-          thumbnailUrl: p.thumbnail_url,
-          location: p.location,
-          tags: p.tags,
-          likesCount: p.likes_count,
-          commentsCount: p.comments_count,
-          sharesCount: p.shares_count,
-          viewsCount: p.views_count,
-          createdAt: p.created_at,
-          isLikedByCurrentUser: p.is_liked_by_current_user
-        }))
+        posts: posts.map(p => {
+          // Parse media_urls if it's a string (safety check for JSONB columns)
+          let mediaUrls = p.media_urls;
+          if (typeof mediaUrls === 'string') {
+            try {
+              mediaUrls = JSON.parse(mediaUrls);
+            } catch (e) {
+              console.error('Error parsing media_urls:', e);
+              mediaUrls = [];
+            }
+          }
+          
+          // Parse tags if it's a string
+          let tags = p.tags;
+          if (typeof tags === 'string') {
+            try {
+              tags = JSON.parse(tags);
+            } catch (e) {
+              console.error('Error parsing tags:', e);
+              tags = [];
+            }
+          }
+
+          return {
+            postId: p.post_id,
+            userId: p.user_id,
+            fullName: p.full_name,
+            avatarUrl: p.avatar_url,
+            userType: p.user_type,
+            photographerId: p.photographer_id,
+            contentType: p.content_type,
+            caption: p.caption,
+            mediaUrls: mediaUrls || [],
+            thumbnailUrl: p.thumbnail_url,
+            location: p.location,
+            tags: tags || [],
+            likesCount: p.likes_count,
+            commentsCount: p.comments_count,
+            sharesCount: p.shares_count,
+            viewsCount: p.views_count,
+            createdAt: p.created_at,
+            isLikedByCurrentUser: p.is_liked_by_current_user
+          };
+        })
       }
     });
 
@@ -71,6 +95,20 @@ export const getAllPosts = async (req, res) => {
 export const createPost = async (req, res) => {
   try {
     const userId = req.user.userId;
+    
+    // Check if user is a photographer - only photographers can create posts
+    const userCheck = await query(
+      `SELECT user_type FROM users WHERE user_id = $1`,
+      [userId]
+    );
+    
+    if (userCheck.length === 0 || userCheck[0].user_type !== 'photographer') {
+      return res.status(403).json({
+        status: 'error',
+        message: 'Only photographers can create posts'
+      });
+    }
+    
     const { caption, location, tags, visibility, contentType } = req.body;
 
     // Parse media_urls if it's a string
@@ -133,34 +171,41 @@ export const createPost = async (req, res) => {
 
     // If user is a photographer and post has media, mirror images into photographer_portfolios
     if (userType === 'photographer' && Array.isArray(mediaUrls) && mediaUrls.length > 0 && photographerId) {
-      const photoValues = [];
-      const photoParams = [];
-      let idx = 1;
+      try {
+        const photoValues = [];
+        const photoParams = [];
+        let idx = 1;
 
-      mediaUrls.forEach((m) => {
-        if (!m.url) return;
-        photoValues.push(
-          `($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++})`
-        );
-        photoParams.push(
-          photographerId,
-          m.url,
-          m.thumbnailUrl || null,
-          caption || null,
-          null, // description
-          null, // category
-          post.post_id // post_id to link back to post
-        );
-      });
+        mediaUrls.forEach((m) => {
+          if (!m.url) return;
+          photoValues.push(
+            `($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++})`
+          );
+          photoParams.push(
+            photographerId,
+            m.url,
+            m.thumbnailUrl || null,
+            caption || null,
+            null, // description
+            null, // category
+            post.post_id, // post_id to link back to post
+            0 // display_order
+          );
+        });
 
-      if (photoValues.length > 0) {
-        await query(
-          `INSERT INTO photographer_portfolios
-             (photographer_id, image_url, thumbnail_url, title, description, category, post_id)
+        if (photoValues.length > 0) {
+          await query(
+            `INSERT INTO photographer_portfolios
+             (photographer_id, image_url, thumbnail_url, title, description, category, post_id, display_order)
            VALUES
              ${photoValues.join(', ')}`,
-          photoParams
-        );
+            photoParams
+          );
+          console.log(`Successfully added ${photoValues.length} portfolio item(s) from post ${post.post_id}`);
+        }
+      } catch (portfolioError) {
+        // Log error but don't fail the post creation
+        console.error('Error adding post to portfolio:', portfolioError);
       }
     }
 

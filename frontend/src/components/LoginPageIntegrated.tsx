@@ -42,7 +42,7 @@ const LoginPageIntegrated = () => {
       if (normalizedType === 'photographer') {
         navigate('/photographer/home');
       } else {
-        navigate('/home');
+        navigate('/event-photos');
       }
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
@@ -53,7 +53,18 @@ const LoginPageIntegrated = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex relative">
+      {/* Mobile Background Image - Full Screen */}
+      <div 
+        className="lg:hidden fixed inset-0 bg-cover bg-center bg-no-repeat -z-10"
+        style={{ 
+          backgroundImage: `url(${heroImage})`,
+          opacity: 0.6
+        }}
+      />
+      {/* Mobile Background Overlay - Full Screen */}
+      <div className="lg:hidden fixed inset-0 bg-gradient-to-br from-background/85 to-background/70 -z-10" />
+      
       {/* Hero Section */}
       <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
         <div 
@@ -74,7 +85,11 @@ const LoginPageIntegrated = () => {
         <div className="relative z-10 flex flex-col justify-center items-start p-12 text-foreground">
           <div>
             <div className="inline-flex items-center mb-6">
-              <Camera className="w-8 h-8 text-primary mr-3" />
+              <img 
+                src="/chitrasethu_logo.png" 
+                alt="Chitrasethu Logo" 
+                className="w-8 h-8 mr-3 object-contain"
+              />
               <span className="text-3xl font-playfair font-bold gradient-text">Chitrasethu</span>
             </div>
             
@@ -120,8 +135,8 @@ const LoginPageIntegrated = () => {
       </div>
 
       {/* Login Form Section */}
-      <div className="flex-1 flex items-center justify-center p-8 lg:p-16">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-center justify-center p-8 lg:p-16 relative z-0">
+        <div className="w-full max-w-md relative z-10">
           <div className="lg:hidden text-center mb-8">
             <div className="inline-flex items-center mb-4">
               <Camera className="w-8 h-8 text-primary mr-3" />

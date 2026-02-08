@@ -210,14 +210,28 @@ export const getPhotographerById = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const photographerResult = await query(
+    // Try to match by photographer_id first (preferred), then by user_id
+    // This ensures we get the correct photographer even if IDs overlap
+    let photographerResult = await query(
       `SELECT p.*, u.email, up.full_name, up.avatar_url, up.bio, up.phone, up.location, up.city, up.state
        FROM photographers p
        JOIN users u ON p.user_id = u.user_id
        JOIN user_profiles up ON u.user_id = up.user_id
-       WHERE (p.photographer_id = $1 OR p.user_id = $1) AND p.is_active = true`,
+       WHERE p.photographer_id = $1 AND p.is_active = true`,
       [id]
     );
+    
+    // If not found by photographer_id, try by user_id
+    if (photographerResult.length === 0) {
+      photographerResult = await query(
+        `SELECT p.*, u.email, up.full_name, up.avatar_url, up.bio, up.phone, up.location, up.city, up.state
+         FROM photographers p
+         JOIN users u ON p.user_id = u.user_id
+         JOIN user_profiles up ON u.user_id = up.user_id
+         WHERE p.user_id = $1 AND p.is_active = true`,
+        [id]
+      );
+    }
     
     if (photographerResult.length === 0) {
       return res.status(404).json({
@@ -227,6 +241,54 @@ export const getPhotographerById = async (req, res) => {
     }
     
     const photographer = photographerResult[0];
+    
+    // Fetch portfolio items
+    const portfolioItems = await query(
+      `SELECT portfolio_id, image_url, video_url, thumbnail_url, media_type, title, description, category, 
+              display_order, likes_count, post_id, created_at
+       FROM photographer_portfolios
+       WHERE photographer_id = $1 AND is_active = true
+       ORDER BY display_order ASC, created_at DESC`,
+      [photographer.photographer_id]
+    );
+    
+    const portfolio = portfolioItems.map(item => ({
+      portfolioId: item.portfolio_id,
+      imageUrl: item.image_url,
+      videoUrl: item.video_url,
+      thumbnailUrl: item.thumbnail_url,
+      mediaType: item.media_type || 'image',
+      title: item.title,
+      description: item.description,
+      category: item.category,
+      likesCount: item.likes_count || 0,
+      postId: item.post_id,
+      createdAt: item.created_at
+    }));
+    
+    // Get follower and following counts
+    const followerCountResult = await query(
+      'SELECT COUNT(*) as count FROM follows WHERE following_id = $1',
+      [photographer.user_id]
+    );
+    const followerCount = parseInt(followerCountResult[0]?.count || 0);
+    
+    const followingCountResult = await query(
+      'SELECT COUNT(*) as count FROM follows WHERE follower_id = $1',
+      [photographer.user_id]
+    );
+    const followingCount = parseInt(followingCountResult[0]?.count || 0);
+    
+    // Check if current user is following (if authenticated)
+    let isFollowing = false;
+    const currentUserId = req.user?.userId;
+    if (currentUserId && currentUserId !== photographer.user_id) {
+      const followCheck = await query(
+        'SELECT follow_id FROM follows WHERE follower_id = $1 AND following_id = $2',
+        [currentUserId, photographer.user_id]
+      );
+      isFollowing = followCheck.length > 0;
+    }
     
     res.status(200).json({
       status: 'success',
@@ -249,7 +311,11 @@ export const getPhotographerById = async (req, res) => {
           rating: parseFloat(photographer.rating),
           totalReviews: photographer.total_reviews,
           isVerified: photographer.is_verified,
-          isPremium: photographer.is_premium
+          isPremium: photographer.is_premium,
+          followerCount: followerCount,
+          followingCount: followingCount,
+          isFollowing: isFollowing,
+          portfolio: portfolio
         }
       }
     });
@@ -338,6 +404,43 @@ export const getMyPhotographerProfile = async (req, res) => {
     
     const photographer = result[0];
     
+    // Fetch portfolio items
+    const portfolioItems = await query(
+      `SELECT portfolio_id, image_url, video_url, thumbnail_url, media_type, title, description, category, 
+              display_order, likes_count, post_id, created_at
+       FROM photographer_portfolios
+       WHERE photographer_id = $1 AND is_active = true
+       ORDER BY display_order ASC, created_at DESC`,
+      [photographer.photographer_id]
+    );
+    
+    const portfolio = portfolioItems.map(item => ({
+      portfolioId: item.portfolio_id,
+      imageUrl: item.image_url,
+      videoUrl: item.video_url,
+      thumbnailUrl: item.thumbnail_url,
+      mediaType: item.media_type || 'image',
+      title: item.title,
+      description: item.description,
+      category: item.category,
+      likesCount: item.likes_count || 0,
+      postId: item.post_id,
+      createdAt: item.created_at
+    }));
+    
+    // Get follower and following counts
+    const followerCountResult = await query(
+      'SELECT COUNT(*) as count FROM follows WHERE following_id = $1',
+      [photographer.user_id]
+    );
+    const followerCount = parseInt(followerCountResult[0]?.count || 0);
+    
+    const followingCountResult = await query(
+      'SELECT COUNT(*) as count FROM follows WHERE follower_id = $1',
+      [photographer.user_id]
+    );
+    const followingCount = parseInt(followingCountResult[0]?.count || 0);
+    
     res.status(200).json({
       status: 'success',
       data: {
@@ -359,7 +462,11 @@ export const getMyPhotographerProfile = async (req, res) => {
           rating: parseFloat(photographer.rating),
           totalReviews: photographer.total_reviews,
           isVerified: photographer.is_verified,
-          isPremium: photographer.is_premium
+          isPremium: photographer.is_premium,
+          followerCount: followerCount,
+          followingCount: followingCount,
+          isFollowing: false, // Can't follow yourself
+          portfolio: portfolio
         }
       }
     });
@@ -437,12 +544,21 @@ export const updateMyPhotographerProfile = async (req, res) => {
 export const addMyPortfolioItems = async (req, res) => {
   try {
     const userId = req.user?.userId;
-    const { items } = req.body;
+    // Accept both 'photos' (from frontend) and 'items' (for backward compatibility)
+    const photos = req.body.photos || req.body.items;
     
     if (!userId) {
       return res.status(401).json({
         status: 'error',
         message: 'Authentication required'
+      });
+    }
+    
+    // Validate that photos is an array
+    if (!Array.isArray(photos) || photos.length === 0) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Photos array is required and must not be empty'
       });
     }
     
@@ -461,18 +577,58 @@ export const addMyPortfolioItems = async (req, res) => {
     
     const photographerId = photographerResult[0].photographer_id;
     
-    // Insert portfolio items
-    for (const item of items) {
-      await query(
-        `INSERT INTO photographer_portfolios (photographer_id, image_url, title, description, category, display_order, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)`,
-        [photographerId, item.imageUrl, item.title || null, item.description || null, item.category || null, item.displayOrder || 0]
+    // Insert portfolio items and collect the created items
+    const createdItems = [];
+    for (const item of photos) {
+      // Determine media type: if videoUrl exists, it's a video; otherwise it's an image
+      const mediaType = item.videoUrl ? 'video' : 'image';
+      
+      // Skip items without required URL
+      if (!item.imageUrl && !item.videoUrl) {
+        continue;
+      }
+      
+      const result = await query(
+        `INSERT INTO photographer_portfolios (photographer_id, image_url, video_url, thumbnail_url, media_type, title, description, category, display_order, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+         RETURNING portfolio_id, image_url, video_url, thumbnail_url, media_type, title, description, category, display_order, likes_count, post_id, created_at`,
+        [
+          photographerId,
+          item.imageUrl || null,
+          item.videoUrl || null,
+          item.thumbnailUrl || null,
+          mediaType,
+          item.title || null,
+          item.description || null,
+          item.category || null,
+          item.displayOrder || 0
+        ]
       );
+      
+      if (result.length > 0) {
+        const portfolioItem = result[0];
+        createdItems.push({
+          portfolioId: portfolioItem.portfolio_id,
+          imageUrl: portfolioItem.image_url,
+          videoUrl: portfolioItem.video_url,
+          thumbnailUrl: portfolioItem.thumbnail_url,
+          mediaType: portfolioItem.media_type || 'image',
+          title: portfolioItem.title,
+          description: portfolioItem.description,
+          category: portfolioItem.category,
+          likesCount: portfolioItem.likes_count || 0,
+          postId: portfolioItem.post_id,
+          createdAt: portfolioItem.created_at
+        });
+      }
     }
     
     res.status(201).json({
       status: 'success',
-      message: 'Portfolio items added successfully'
+      message: 'Portfolio items added successfully',
+      data: {
+        portfolio: createdItems
+      }
     });
     
   } catch (error) {

@@ -328,9 +328,13 @@ class MoodBoardService {
     fullName: string;
     avatarUrl?: string;
     userType: string;
+    photographerId?: number | null;
   }>> {
     try {
-      const response = await fetch(`${API_ENDPOINTS.MOODBOARDS.SEARCH_USERS}?search=${encodeURIComponent(search)}`, {
+      const url = `${API_ENDPOINTS.MOODBOARDS.SEARCH_USERS}?search=${encodeURIComponent(search)}`;
+      console.log('[Search Users] Calling API:', url);
+      
+      const response = await fetch(url, {
         headers: {
           ...getAuthHeader(),
         },
@@ -338,17 +342,21 @@ class MoodBoardService {
       });
 
       const result = await response.json();
+      console.log('[Search Users] Response:', { status: response.status, result });
 
       if (!response.ok) {
+        console.error('[Search Users] API Error:', result);
         throw new Error(result.message || 'Failed to search users');
       }
 
+      console.log('[Search Users] Found users:', result.data?.users?.length || 0);
       return result.data.users;
     } catch (error: any) {
       // Re-throw abort errors as-is
       if (error.name === 'AbortError') {
         throw error;
       }
+      console.error('[Search Users] Error:', error);
       throw new Error(handleApiError(error));
     }
   }

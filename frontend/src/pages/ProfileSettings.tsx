@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +31,7 @@ interface User {
 
 const ProfileSettings = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -44,6 +45,7 @@ const ProfileSettings = () => {
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
   const [followingCount, setFollowingCount] = useState(0);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
+  const [isViewingOtherUser, setIsViewingOtherUser] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -63,11 +65,47 @@ const ProfileSettings = () => {
           return;
         }
 
-        const userData = await authService.getCurrentUser();
+        const currentUser = authService.getStoredUser();
+        const targetUserId = id ? parseInt(id) : null;
+        const viewingOtherUser = targetUserId && currentUser?.userId !== targetUserId;
+
+        setIsViewingOtherUser(viewingOtherUser || false);
+
+        let userData: User;
+        
+        if (viewingOtherUser && targetUserId) {
+          // Load other user's profile by ID
+          try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/auth/user/${targetUserId}`, {
+              headers: {
+                ...(authService.isAuthenticated() ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {})
+              }
+            });
+            
+            if (!response.ok) {
+              throw new Error('User not found');
+            }
+            
+            const result = await response.json();
+            userData = result.data.user;
+          } catch (err: any) {
+            console.error('Error loading user by ID:', err);
+            setError('User not found');
+            setLoading(false);
+            return;
+          }
+        } else {
+          // Load current user's profile
+          userData = await authService.getCurrentUser();
+        }
         
         // If user is a photographer, redirect to photographer profile
         if (userData.userType === 'photographer') {
-          navigate('/photographer/profile/public');
+          if (viewingOtherUser && targetUserId) {
+            navigate(`/photographer/profile/${targetUserId}`);
+          } else {
+            navigate('/photographer/profile/public');
+          }
           return;
         }
         
@@ -83,8 +121,8 @@ const ProfileSettings = () => {
           bio: userData.bio || ''
         });
 
-        // Load following count for customers
-        if (userData.userType === 'customer') {
+        // Load following count for customers (only for current user)
+        if (userData.userType === 'customer' && !viewingOtherUser) {
           try {
             const followingData = await followService.getMyFollowing(1, 0);
             setFollowingCount(followingData.total);
@@ -101,7 +139,7 @@ const ProfileSettings = () => {
     };
 
     loadUser();
-  }, [navigate]);
+  }, [navigate, id]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -368,7 +406,7 @@ const ProfileSettings = () => {
                       <User className="w-5 h-5" />
                       <span>Personal Information</span>
                     </CardTitle>
-                    {!editing ? (
+                    {!editing && !isViewingOtherUser ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -378,7 +416,7 @@ const ProfileSettings = () => {
                         <Edit3 className="w-4 h-4" />
                         <span>Edit</span>
                       </Button>
-                    ) : (
+                    ) : !isViewingOtherUser && (
                       <div className="flex items-center space-x-2">
                         <Button
                           variant="outline"
@@ -412,8 +450,9 @@ const ProfileSettings = () => {
                         name="fullName"
                         value={formData.fullName}
                         onChange={handleInputChange}
-                        disabled={!editing}
+                        disabled={!editing || isViewingOtherUser}
                         className="bg-background/50"
+                        readOnly={isViewingOtherUser}
                       />
                     </div>
                     <div className="space-y-2">
@@ -442,7 +481,8 @@ const ProfileSettings = () => {
                         type="tel"
                         value={formData.phone}
                         onChange={handleInputChange}
-                        disabled={!editing}
+                        disabled={!editing || isViewingOtherUser}
+                        readOnly={isViewingOtherUser}
                         className="bg-background/50"
                         placeholder="+91 98765 43210"
                       />
@@ -454,7 +494,8 @@ const ProfileSettings = () => {
                         name="location"
                         value={formData.location}
                         onChange={handleInputChange}
-                        disabled={!editing}
+                        disabled={!editing || isViewingOtherUser}
+                        readOnly={isViewingOtherUser}
                         className="bg-background/50"
                         placeholder="City, State, Country"
                       />
@@ -469,7 +510,8 @@ const ProfileSettings = () => {
                         name="city"
                         value={formData.city}
                         onChange={handleInputChange}
-                        disabled={!editing}
+                        disabled={!editing || isViewingOtherUser}
+                        readOnly={isViewingOtherUser}
                         className="bg-background/50"
                         placeholder="Mumbai"
                       />
@@ -481,7 +523,8 @@ const ProfileSettings = () => {
                         name="state"
                         value={formData.state}
                         onChange={handleInputChange}
-                        disabled={!editing}
+                        disabled={!editing || isViewingOtherUser}
+                        readOnly={isViewingOtherUser}
                         className="bg-background/50"
                         placeholder="Maharashtra"
                       />
@@ -498,7 +541,8 @@ const ProfileSettings = () => {
                       name="bio"
                       value={formData.bio}
                       onChange={handleInputChange}
-                      disabled={!editing}
+                      disabled={!editing || isViewingOtherUser}
+                      readOnly={isViewingOtherUser}
                       className="w-full min-h-[100px] px-3 py-2 bg-background/50 border border-border rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted/50"
                       placeholder="Tell us about yourself..."
                     />

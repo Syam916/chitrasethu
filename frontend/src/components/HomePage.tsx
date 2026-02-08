@@ -1,19 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus } from 'lucide-react';
 import NavbarIntegrated from './home/NavbarIntegrated';
 import HeroSection from './home/HeroSection';
 import LeftSidebar from './home/LeftSidebar';
 import MainFeed from './home/MainFeed';
 import RightSidebar from './home/RightSidebar';
 import CreatePostDialog from './home/CreatePostDialog';
-import { Button } from './ui/button';
 import authService from '@/services/auth.service';
 
 const HomePage = () => {
   const navigate = useNavigate();
   const [createPostOpen, setCreatePostOpen] = useState(false);
+  const [postMode, setPostMode] = useState<'photo' | 'video'>('photo');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const user = authService.getStoredUser();
+  const isPhotographer = user?.userType === 'photographer';
 
   useEffect(() => {
     // Check if user is authenticated
@@ -45,34 +47,38 @@ const HomePage = () => {
           
           {/* Main Feed - 60% - Full width on mobile */}
           <div className="lg:col-span-3">
-            {/* Create Post Button */}
-            <div className="mb-4 sm:mb-6">
-              <Button
-                onClick={() => setCreatePostOpen(true)}
-                className="w-full py-4 sm:py-6 text-base sm:text-lg font-semibold shadow-lg hover:shadow-xl transition-all"
-                size="lg"
-              >
-                <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                Create New Post
-              </Button>
-            </div>
-
             <MainFeed refreshTrigger={refreshTrigger} />
           </div>
           
           {/* Right Sidebar - 20% - Hidden on mobile */}
           <div className="hidden lg:block lg:col-span-1">
-            <RightSidebar />
+            <RightSidebar 
+              onCreatePostClick={isPhotographer ? () => {
+                setPostMode('photo');
+                setCreatePostOpen(true);
+              } : undefined}
+              onUploadVideoClick={isPhotographer ? () => {
+                setPostMode('video');
+                setCreatePostOpen(true);
+              } : undefined}
+              onCreateEventClick={isPhotographer ? () => {
+                setPostMode('photo');
+                setCreatePostOpen(true);
+              } : undefined}
+            />
           </div>
         </div>
       </div>
 
-      {/* Create Post Dialog */}
-      <CreatePostDialog
-        open={createPostOpen}
-        onOpenChange={setCreatePostOpen}
-        onPostCreated={handlePostCreated}
-      />
+      {/* Create Post Dialog - Only for Photographers */}
+      {isPhotographer && (
+        <CreatePostDialog
+          open={createPostOpen}
+          onOpenChange={setCreatePostOpen}
+          onPostCreated={handlePostCreated}
+          initialMode={postMode}
+        />
+      )}
     </div>
   );
 };

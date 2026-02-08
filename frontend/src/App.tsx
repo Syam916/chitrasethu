@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Home from "./pages/Home";
 import Explore from "./pages/Explore";
 import EventPhotos from "./pages/EventPhotos";
+import CreateEvent from "./pages/CreateEvent";
 import MoodBoard from "./pages/MoodBoard";
 import Requests from "./pages/Requests";
 import CommunityBuzz from "./pages/CommunityBuzz";
@@ -58,10 +59,12 @@ const App = () => (
           <Route path="/login" element={<LoginPageIntegrated />} />
           <Route path="/register" element={<RegisterPageIntegrated />} />
           <Route path="/test" element={<TestConnection />} />
+          <Route path="/profile/:id" element={<ProfileSettings />} />
           <Route path="/profile" element={<ProfileSettings />} />
           <Route path="/home" element={<Home />} />
           <Route path="/explore" element={<Explore />} />
           <Route path="/event-photos" element={<EventPhotos />} />
+          <Route path="/events/create" element={<CreateEvent />} />
           <Route path="/mood-board" element={<MoodBoard />} />
           <Route path="/requests" element={<Requests />} />
           <Route path="/community-buzz" element={<CommunityBuzz />} />

@@ -56,7 +56,14 @@ const GroupChat: React.FC<GroupChatProps> = ({ groupId, currentUserId, isMember 
       // Listen for new group messages
       const handleNewMessage = (data: { message: GroupMessage; groupId: number }) => {
         if (data.groupId === groupId) {
-          setMessages(prev => [...prev, data.message]);
+          setMessages(prev => {
+            // Check if message already exists to prevent duplicates
+            const messageExists = prev.some(msg => msg.messageId === data.message.messageId);
+            if (messageExists) {
+              return prev;
+            }
+            return [...prev, data.message];
+          });
         }
       };
 
@@ -232,11 +239,13 @@ const GroupChat: React.FC<GroupChatProps> = ({ groupId, currentUserId, isMember 
             </div>
           )}
 
-          {!loading && messages.map((message) => {
+          {!loading && messages.map((message, index) => {
             const isOwnMessage = message.senderId === currentUserId;
+            // Create unique key combining messageId, timestamp, and index to prevent duplicates
+            const uniqueKey = `${message.messageId}-${message.createdAt}-${index}`;
             return (
               <div
-                key={message.messageId}
+                key={uniqueKey}
                 className={`flex gap-3 ${isOwnMessage ? 'flex-row-reverse' : ''}`}
               >
                 <Avatar className="w-8 h-8">

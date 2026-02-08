@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Play, Loader2 } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, Play, Loader2, ChevronLeft, ChevronRight, Video } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
+import { Dialog, DialogContent } from '../ui/dialog';
 import postService, { Post } from '@/services/post.service';
 import uploadService from '@/services/upload.service';
 import { useToast } from '@/hooks/use-toast';
@@ -31,6 +32,10 @@ const MainFeed: React.FC<MainFeedProps> = ({ refreshTrigger = 0 }) => {
     Record<number, { commentId: number; fullName?: string } | null>
   >({});
   const [currentUserAvatar, setCurrentUserAvatar] = useState<string | undefined>(undefined);
+  const [currentImageIndex, setCurrentImageIndex] = useState<Record<number, number>>({});
+  const [selectedVideo, setSelectedVideo] = useState<{ url: string; postId: number } | null>(null);
+  const [playingVideos, setPlayingVideos] = useState<Record<number, boolean>>({});
+  const videoRefs = React.useRef<Record<number, HTMLVideoElement | null>>({});
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -71,6 +76,42 @@ const MainFeed: React.FC<MainFeedProps> = ({ refreshTrigger = 0 }) => {
     
     loadCurrentUserAvatar();
   }, [refreshTrigger]);
+
+  // Intersection Observer for video autoplay/pause
+  useEffect(() => {
+    const observerOptions = {
+      root: null,
+      rootMargin: '0px',
+      threshold: 0.5, // Video must be 50% visible to play
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        const video = entry.target as HTMLVideoElement;
+        
+        if (entry.isIntersecting) {
+          // Video is visible - try to play
+          video.play().catch((error) => {
+            console.log('Autoplay prevented:', error);
+          });
+        } else {
+          // Video is not visible - pause
+          video.pause();
+        }
+      });
+    }, observerOptions);
+
+    // Observe all video elements
+    Object.values(videoRefs.current).forEach((video) => {
+      if (video) {
+        observer.observe(video);
+      }
+    });
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [posts]);
 
   // Fetch likes for posts that have likes
   useEffect(() => {
@@ -283,8 +324,32 @@ const MainFeed: React.FC<MainFeedProps> = ({ refreshTrigger = 0 }) => {
   return (
     <div className="space-y-6">
       {posts.map((post) => {
-        const firstMedia = post.mediaUrls?.[0];
-        const hasMultipleMedia = post.mediaUrls && post.mediaUrls.length > 1;
+        const mediaUrls = post.mediaUrls || [];
+        const hasMultipleMedia = mediaUrls.length > 1;
+        const currentIndex = currentImageIndex[post.postId] || 0;
+        const currentMedia = mediaUrls[currentIndex];
+        
+        const goToNextImage = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          if (hasMultipleMedia) {
+            const nextIndex = (currentIndex + 1) % mediaUrls.length;
+            setCurrentImageIndex(prev => ({
+              ...prev,
+              [post.postId]: nextIndex
+            }));
+          }
+        };
+
+        const goToPrevImage = (e: React.MouseEvent) => {
+          e.stopPropagation();
+          if (hasMultipleMedia) {
+            const prevIndex = currentIndex === 0 ? mediaUrls.length - 1 : currentIndex - 1;
+            setCurrentImageIndex(prev => ({
+              ...prev,
+              [post.postId]: prevIndex
+            }));
+          }
+        };
         
         return (
           <Card key={post.postId} className="glass-effect overflow-hidden hover:shadow-elegant transition-all duration-300">
@@ -335,25 +400,71 @@ const MainFeed: React.FC<MainFeedProps> = ({ refreshTrigger = 0 }) => {
             </div>
 
             {/* Post Media */}
-            {firstMedia && (
-              <div className="relative">
-                <div className="aspect-square bg-muted/20">
+            {currentMedia && (
+              <div className="relative group">
+                <div className="aspect-square bg-muted/20 relative overflow-hidden">
                   {post.contentType === 'video' ? (
-                    <div className="relative w-full h-full">
-                      <img 
-                        src={uploadService.getOptimizedUrl(firstMedia.url, 800)} 
-                        alt="Video thumbnail" 
+                    <div 
+                      className="relative w-full h-full bg-black overflow-hidden group"
+                      onClick={(e) => {
+                        // Toggle play/pause on click
+                        const video = videoRefs.current[post.postId];
+                        if (video) {
+                          if (video.paused) {
+                            video.play();
+                          } else {
+                            video.pause();
+                          }
+                        }
+                      }}
+                    >
+                      <video
+                        ref={(el) => {
+                          videoRefs.current[post.postId] = el;
+                        }}
+                        data-post-id={post.postId}
+                        src={currentMedia.url}
                         className="w-full h-full object-cover"
+                        autoPlay
+                        muted
+                        loop
+                        playsInline
+                        controls={false}
+                        onLoadedData={(e) => {
+                          const video = e.currentTarget;
+                          setPlayingVideos(prev => ({ ...prev, [post.postId]: !video.paused }));
+                        }}
+                        onPlay={() => {
+                          setPlayingVideos(prev => ({ ...prev, [post.postId]: true }));
+                        }}
+                        onPause={() => {
+                          setPlayingVideos(prev => ({ ...prev, [post.postId]: false }));
+                        }}
+                        onError={(e) => {
+                          console.error('Video load error:', e);
+                        }}
                       />
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                        <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center backdrop-blur-sm">
-                          <Play className="w-6 h-6 text-gray-800 ml-1" fill="currentColor" />
+                      {/* Click overlay - shows pause icon when playing */}
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-all cursor-pointer z-10">
+                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                          {playingVideos[post.postId] ? (
+                            <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center backdrop-blur-sm shadow-lg">
+                              <div className="w-6 h-6 flex items-center justify-center">
+                                <div className="w-2 h-6 bg-gray-900 mx-0.5"></div>
+                                <div className="w-2 h-6 bg-gray-900 mx-0.5"></div>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center backdrop-blur-sm shadow-lg">
+                              <Play className="w-8 h-8 text-gray-900 ml-1" fill="currentColor" />
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
                   ) : (
                     <img 
-                      src={uploadService.getOptimizedUrl(firstMedia.url, 800)} 
+                      src={uploadService.getOptimizedUrl(currentMedia.url, 800)} 
                       alt="Post content" 
                       className="w-full h-full object-cover"
                       loading="lazy"
@@ -361,10 +472,57 @@ const MainFeed: React.FC<MainFeedProps> = ({ refreshTrigger = 0 }) => {
                   )}
                 </div>
                 
+                {/* Navigation Arrows */}
+                {hasMultipleMedia && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                      onClick={goToPrevImage}
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm"
+                      onClick={goToNextImage}
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </Button>
+                  </>
+                )}
+                
                 {/* Media Counter */}
                 {hasMultipleMedia && (
                   <div className="absolute top-4 right-4 bg-black/50 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-                    1/{post.mediaUrls.length}
+                    {currentIndex + 1}/{mediaUrls.length}
+                  </div>
+                )}
+
+                {/* Image Indicators */}
+                {hasMultipleMedia && (
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-1">
+                    {mediaUrls.map((_, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className={`h-1.5 rounded-full transition-all ${
+                          index === currentIndex 
+                            ? 'bg-white w-6' 
+                            : 'bg-white/50 w-1.5 hover:bg-white/75'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentImageIndex(prev => ({
+                            ...prev,
+                            [post.postId]: index
+                          }));
+                        }}
+                        aria-label={`Go to image ${index + 1}`}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
@@ -687,6 +845,22 @@ const MainFeed: React.FC<MainFeedProps> = ({ refreshTrigger = 0 }) => {
           </Card>
         );
       })}
+
+      {/* Video Player Modal */}
+      <Dialog open={!!selectedVideo} onOpenChange={(open) => !open && setSelectedVideo(null)}>
+        <DialogContent className="max-w-4xl w-full p-0 gap-0 bg-black">
+          {selectedVideo && (
+            <div className="relative w-full aspect-video bg-black">
+              <video
+                src={selectedVideo.url}
+                controls
+                autoPlay
+                className="w-full h-full object-contain"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

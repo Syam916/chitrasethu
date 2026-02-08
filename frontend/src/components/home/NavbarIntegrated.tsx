@@ -35,14 +35,18 @@ const Navbar = () => {
     fullName: string;
     avatarUrl?: string;
     userType: string;
+    photographerId?: number | null;
   }>>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const searchAbortControllerRef = useRef<AbortController | null>(null);
-  const searchContainerRef = useRef<HTMLDivElement | null>(null);
+  const desktopSearchContainerRef = useRef<HTMLDivElement | null>(null);
+  const mobileSearchContainerRef = useRef<HTMLDivElement | null>(null);
   const searchDropdownRef = useRef<HTMLDivElement | null>(null);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const desktopSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
+  const currentSearchQueryRef = useRef<string>('');
   const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const navItems = [
@@ -69,20 +73,35 @@ const Navbar = () => {
   // Calculate dropdown position and handle click outside
   useEffect(() => {
     const updateDropdownPosition = () => {
-      if (searchInputRef.current && searchOpen) {
-        const rect = searchInputRef.current.getBoundingClientRect();
+      // Use desktop input for desktop view, mobile input for mobile view
+      const isDesktop = window.innerWidth >= 1024; // lg breakpoint
+      const activeInput = isDesktop ? desktopSearchInputRef.current : mobileSearchInputRef.current;
+      
+      if (activeInput && searchOpen) {
+        const rect = activeInput.getBoundingClientRect();
+        // For position: fixed, use viewport coordinates directly (getBoundingClientRect already provides these)
         setDropdownPosition({
-          top: rect.bottom + window.scrollY + 4,
-          left: rect.left + window.scrollX,
+          top: rect.bottom + 4,
+          left: rect.left,
           width: Math.max(320, rect.width), // Minimum 320px width
+        });
+        console.log('[Navbar] Dropdown position calculated:', {
+          isDesktop,
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: Math.max(320, rect.width),
+          inputRect: rect
         });
       }
     };
 
     const handleClickOutside = (event: MouseEvent) => {
+      const isDesktop = window.innerWidth >= 1024;
+      const searchContainer = isDesktop ? desktopSearchContainerRef.current : mobileSearchContainerRef.current;
+      
       if (
-        searchContainerRef.current &&
-        !searchContainerRef.current.contains(event.target as Node) &&
+        searchContainer &&
+        !searchContainer.contains(event.target as Node) &&
         searchDropdownRef.current &&
         !searchDropdownRef.current.contains(event.target as Node)
       ) {
@@ -91,19 +110,25 @@ const Navbar = () => {
     };
 
     if (searchOpen) {
+      // Calculate position immediately and after a short delay to ensure accuracy
       updateDropdownPosition();
+      const timeoutId = setTimeout(() => {
+        updateDropdownPosition();
+      }, 10);
+      
       window.addEventListener('scroll', updateDropdownPosition, true);
       window.addEventListener('resize', updateDropdownPosition);
       document.addEventListener('mousedown', handleClickOutside);
+      
+      return () => {
+        clearTimeout(timeoutId);
+        window.removeEventListener('scroll', updateDropdownPosition, true);
+        window.removeEventListener('resize', updateDropdownPosition);
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
     } else {
       setDropdownPosition(null);
     }
-
-    return () => {
-      window.removeEventListener('scroll', updateDropdownPosition, true);
-      window.removeEventListener('resize', updateDropdownPosition);
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
   }, [searchOpen]);
 
   useEffect(() => {
@@ -158,6 +183,9 @@ const Navbar = () => {
   const handleSearch = async (query: string) => {
     const trimmedQuery = query.trim();
     
+    // Update ref with current query
+    currentSearchQueryRef.current = trimmedQuery;
+    
     // Clear previous timeout
     if (searchTimeoutRef.current) {
       clearTimeout(searchTimeoutRef.current);
@@ -197,20 +225,28 @@ const Navbar = () => {
       setSearchLoading(true);
 
       try {
+        console.log('[Navbar Search] Searching for:', trimmedQuery);
         const results = await moodboardService.searchUsers(trimmedQuery, abortController.signal);
+        console.log('[Navbar Search] Results:', results);
+        console.log('[Navbar Search] Current query ref:', currentSearchQueryRef.current);
+        console.log('[Navbar Search] Trimmed query:', trimmedQuery);
         
-        // Only update if request wasn't cancelled and query still matches
-        if (!abortController.signal.aborted && searchQuery.trim() === trimmedQuery) {
+        // Only update if request wasn't cancelled and query still matches current search
+        if (!abortController.signal.aborted && currentSearchQueryRef.current === trimmedQuery) {
+          console.log('[Navbar Search] Setting results:', results.length);
           setSearchResults(results);
+        } else {
+          console.log('[Navbar Search] Skipping results update - query mismatch or aborted');
         }
       } catch (error: any) {
         // Ignore abort errors
         if (error.name === 'AbortError') {
           return;
         }
-        // Silently handle search errors - don't block UI
-        console.error('Search error:', error);
-        if (!abortController.signal.aborted && searchQuery.trim() === trimmedQuery) {
+        // Log search errors for debugging
+        console.error('[Navbar Search] Error:', error);
+        console.error('[Navbar Search] Error message:', error.message);
+        if (!abortController.signal.aborted && currentSearchQueryRef.current === trimmedQuery) {
           setSearchResults([]);
         }
       } finally {
@@ -223,15 +259,18 @@ const Navbar = () => {
 
   const handleSearchResultClick = (result: typeof searchResults[0]) => {
     if (result.userType === 'photographer') {
-      // Navigate to photographer profile using userId (backend will resolve photographerId)
-      navigate(`/photographer/profile/${result.userId}`);
-    } else {
-      // For customers, navigate to explore page or profile settings
-      if (result.userId === user?.userId) {
-        navigate(`/profile`);
+      // For photographers, we MUST use photographerId, not userId
+      // If photographerId is not available, the photographer profile might not exist
+      if (result.photographerId) {
+        navigate(`/photographer/profile/${result.photographerId}`);
       } else {
-        navigate(`/explore`);
+        // Fallback: try with userId, but this should be rare
+        console.warn('Photographer ID not found in search results, using userId as fallback:', result.userId);
+        navigate(`/photographer/profile/${result.userId}`);
       }
+    } else {
+      // For customers, navigate to their profile page using userId
+      navigate(`/profile/${result.userId}`);
     }
     setSearchQuery('');
     setSearchResults([]);
@@ -274,10 +313,10 @@ const Navbar = () => {
 
   return (
     <nav className="sticky top-0 z-[100] bg-background/95 backdrop-blur-md border-b border-border shadow-sm overflow-x-hidden overflow-y-visible">
-      <div className="w-full mx-auto px-4 sm:px-6 md:px-8">
-        <div className="flex items-center justify-between h-14 sm:h-16 gap-2 min-w-0">
+      <div className="w-full mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16 gap-1.5 sm:gap-2 min-w-0">
           {/* Left Side - Mobile Menu + Logo */}
-          <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0 min-w-0">
             {/* Mobile Menu Button - Corner Position */}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
@@ -296,17 +335,7 @@ const Navbar = () => {
                     </div>
                   </SheetTitle>
                 </SheetHeader>
-                <div className="mt-6 space-y-2">
-                  {/* Mobile Search */}
-                  <div className="mb-4 pb-4 border-b">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search photographers, events..."
-                        className="pl-10 bg-muted/50"
-                      />
-                    </div>
-                  </div>
+                <div className="space-y-2 pt-2">
                   {navItems.map((item) => {
                     const IconComponent = item.icon;
                     return (
@@ -372,10 +401,12 @@ const Navbar = () => {
               className="flex items-center space-x-2 sm:space-x-3 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => navigate('/home')}
             >
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-primary to-primary-glow rounded-xl flex items-center justify-center">
-                <Image className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
-              </div>
-              <h1 className="text-lg sm:text-2xl font-playfair font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+              <img 
+                src="/chitrasethu_logo.png" 
+                alt="Chitrasethu Logo" 
+                className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
+              />
+              <h1 className="hidden sm:block text-lg sm:text-2xl font-playfair font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
                 ChitraSethu
               </h1>
             </div>
@@ -400,11 +431,11 @@ const Navbar = () => {
           </div>
 
           {/* Search Bar - Desktop only */}
-          <div ref={searchContainerRef} className="hidden lg:flex items-center mx-1 xl:mx-2 flex-shrink-0 min-w-0 relative z-50">
+          <div ref={desktopSearchContainerRef} className="hidden lg:flex items-center mx-1 xl:mx-2 flex-shrink-0 min-w-0 relative z-50">
             <div className="relative w-28 xl:w-36">
               <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 xl:w-4 xl:h-4 text-muted-foreground pointer-events-none z-10" />
               <Input
-                ref={searchInputRef}
+                ref={desktopSearchInputRef}
                 placeholder="Search photographers, customers..."
                 value={searchQuery}
                 onChange={(e) => {
@@ -440,15 +471,15 @@ const Navbar = () => {
                 <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 animate-spin text-muted-foreground pointer-events-none" />
               )}
             </div>
-            {searchOpen && (searchQuery.trim().length >= 1 || searchResults.length > 0) && (dropdownPosition || true) && createPortal(
+            {searchOpen && (searchQuery.trim().length >= 1 || searchResults.length > 0) && dropdownPosition && createPortal(
               <div 
                 ref={searchDropdownRef}
                 className="fixed w-80 bg-popover border rounded-md shadow-lg z-[9999]"
                 style={{ 
                   position: 'fixed',
-                  top: dropdownPosition ? `${dropdownPosition.top}px` : '100px',
-                  left: dropdownPosition ? `${dropdownPosition.left}px` : '100px',
-                  width: dropdownPosition ? `${dropdownPosition.width}px` : '320px',
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`,
+                  width: `${dropdownPosition.width}px`,
                   maxHeight: '400px',
                 }}
                 onMouseDown={(e) => {
@@ -506,8 +537,110 @@ const Navbar = () => {
             )}
           </div>
 
+          {/* Mobile Search Bar - Only on mobile, beside notification */}
+          <div ref={mobileSearchContainerRef} className="lg:hidden flex items-center flex-1 max-w-[120px] sm:max-w-[160px] min-w-0 relative z-50 mr-1">
+            <div className="relative w-full">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none z-10" />
+              <Input
+                ref={mobileSearchInputRef}
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchQuery(value);
+                  if (value.trim().length >= 1) {
+                    setSearchOpen(true);
+                  } else {
+                    setSearchOpen(false);
+                  }
+                  handleSearch(value);
+                }}
+                onFocus={() => {
+                  if (searchQuery.trim().length >= 1 || searchResults.length > 0) {
+                    setSearchOpen(true);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setSearchOpen(false);
+                    setSearchQuery('');
+                    setSearchResults([]);
+                  }
+                }}
+                className="pl-7 pr-2 h-8 text-xs bg-muted/50 border-none focus:bg-background transition-colors"
+                autoComplete="off"
+              />
+              {searchLoading && (
+                <Loader2 className="absolute right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 animate-spin text-muted-foreground pointer-events-none" />
+              )}
+            </div>
+            {searchOpen && (searchQuery.trim().length >= 1 || searchResults.length > 0) && dropdownPosition && createPortal(
+              <div 
+                ref={searchDropdownRef}
+                className="fixed w-80 bg-popover border rounded-md shadow-lg z-[9999]"
+                style={{ 
+                  position: 'fixed',
+                  top: `${dropdownPosition.top}px`,
+                  left: `${dropdownPosition.left}px`,
+                  width: `${dropdownPosition.width}px`,
+                  maxHeight: '400px',
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                }}
+              >
+                <div className="overflow-y-auto" style={{ maxHeight: '400px' }}>
+                  {searchLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : searchQuery.trim().length === 1 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Type at least 2 characters to search
+                    </div>
+                  ) : searchResults.length === 0 && searchQuery.trim().length >= 2 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No results found for "{searchQuery.trim()}"
+                    </div>
+                  ) : searchResults.length > 0 ? (
+                    <div className="py-2">
+                      {searchResults.map((result) => (
+                        <div
+                          key={result.userId}
+                          onClick={() => handleSearchResultClick(result)}
+                          className="flex items-center space-x-3 px-4 py-3 hover:bg-muted cursor-pointer transition-colors"
+                        >
+                          <Avatar className="w-10 h-10">
+                            <AvatarImage src={result.avatarUrl} alt={result.fullName} />
+                            <AvatarFallback className="bg-gradient-to-br from-primary to-primary-glow text-white text-xs">
+                              {getInitials(result.fullName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{result.fullName}</p>
+                            <p className="text-xs text-muted-foreground capitalize truncate">
+                              {result.userType}
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="text-xs capitalize">
+                            {result.userType}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      Start typing to search...
+                    </div>
+                  )}
+                </div>
+              </div>,
+              document.body
+            )}
+          </div>
+
           {/* Profile Section */}
-          <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0 min-w-0">
+          <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 flex-shrink-0 min-w-0">
             {/* Messages Icon - Only for customers, hidden on mobile (shown in menu) */}
             {user && user.userType === 'customer' && (
               <Button 
@@ -523,9 +656,9 @@ const Navbar = () => {
               </Button>
             )}
 
-            <Button variant="ghost" size="icon" className="relative">
+            <Button variant="ghost" size="icon" className="relative h-9 w-9 sm:h-10 sm:w-10 flex-shrink-0">
               <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+              <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-red-500 rounded-full border-2 border-background"></span>
             </Button>
             
             {user ? (
